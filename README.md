@@ -15,18 +15,6 @@ A motion sensor elapsed-time monitor using the Philips Hue motion sensor. Availa
 - **Historical analytics** — Daily statistics (average, max, min, total) with charts and long-term log retention
 - **Zero-config setup** — Auto-discovers Bridge, generates API key with button press, and lets you pick a sensor from the screen
 
-## Use Cases
-
-**Facility Management** — Measure actual usage time of meeting rooms and break rooms to analyze utilization rates. Optimize cleaning schedules based on usage frequency data.
-
-**Health Management** — Record toilet frequency and duration by day to visualize changes in daily routines. Measure continuous desk work time to prevent prolonged sitting.
-
-**Caregiving** — Detect nighttime wandering with hallway and entrance sensors. Identify changes in daily behavior patterns early through statistical data.
-
-**Safety & Monitoring** — Detect abnormally long stays in bathrooms or toilets and trigger alerts. Confirm the safety of elderly people living alone or children at home.
-
-**Pets** — Record activity patterns by room during time alone. Detect unusual behavior when a pet stays in an unexpected area for an extended period.
-
 ## Overview
 
 ### Web Dashboard
@@ -35,6 +23,18 @@ A motion sensor elapsed-time monitor using the Philips Hue motion sensor. Availa
 *Shown in Japanese. Set `lang` to `"en"` in config to switch to English.*
 
 Monitors a Hue motion sensor (ZLLPresence) and displays a real-time timer since the last detection. Designed for tracking occupancy duration with alerts and historical logging.
+
+## Use Cases
+
+- **Facility Management** — Measure actual usage time of meeting rooms and break rooms to analyze utilization rates. Optimize cleaning schedules based on usage frequency data.
+
+- **Health Management** — Record toilet frequency and duration by day to visualize changes in daily routines. Measure continuous desk work time to prevent prolonged sitting.
+
+- **Caregiving** — Detect nighttime wandering with hallway and entrance sensors. Identify changes in daily behavior patterns early through statistical data.
+
+- **Safety & Monitoring** — Detect abnormally long stays in bathrooms or toilets and trigger alerts. Confirm the safety of elderly people living alone or children at home.
+
+- **Pets** — Record activity patterns by room during time alone. Detect unusual behavior when a pet stays in an unexpected area for an extended period.
 
 ## Two Versions
 
