@@ -4,6 +4,15 @@ A motion sensor elapsed-time monitor using the Philips Hue motion sensor. Availa
 
 [日本語版はこちら](README.ja.md)
 
+## Why This Project?
+
+- **Real-time elapsed timer** — Unlike typical motion-triggered automations that only detect ON/OFF, this project tracks and displays how long someone has been present since the first detection
+- **No Home Assistant required** — Connects directly to the Hue Bridge API without any additional hub or platform
+- **Dual interface** — Physical M5Stack device with LCD + speaker and a web dashboard, each working independently or together
+- **Multi-level alerts** — Configurable alert schedule with normal and urgent alarms that escalate over time
+- **Historical analytics** — Daily statistics (average, max, min, total) with charts and long-term log retention
+- **Zero-config setup** — Auto-discovers Bridge, generates API key with button press, and lets you pick a sensor from the screen
+
 ## Overview
 
 Monitors a Hue motion sensor (ZLLPresence) and displays a real-time timer since the last detection. Designed for tracking occupancy duration with audible alerts and historical logging.
