@@ -6,6 +6,8 @@ A motion sensor elapsed-time monitor using the Philips Hue motion sensor. Availa
 
 ## Why This Project?
 
+🌐 **[Project Page](https://yo1t.github.io/hue-motion-timer/)** | **[日本語ページ](https://yo1t.github.io/hue-motion-timer/ja.html)**
+
 - **Real-time elapsed timer** — Unlike typical motion-triggered automations that only detect ON/OFF, this project tracks and displays how long someone has been present since the first detection
 - **No Home Assistant required** — Connects directly to the Hue Bridge API without any additional hub or platform
 - **Dual interface** — Physical M5Stack device with LCD + speaker and a web dashboard, each working independently or together
