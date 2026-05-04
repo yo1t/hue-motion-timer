@@ -1,0 +1,47 @@
+/*
+ * config.h - 接続設定ファイル
+ *
+ * このファイルをコピーして config.h を作成し、値を埋めてください。
+ *   cp config.h.example config.h
+ *
+ * すべて空文字にしておけば M5Stack 上で自動セットアップが走ります:
+ *   - Bridge IP: mDNS / Cloud で自動探索
+ *   - API Key:   Bridge ボタン押下で自動取得
+ *   - Sensor:    一覧から M5Stack のボタンで選択
+ */
+
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// WiFi 設定 (空文字の場合はシリアルモニタから入力)
+#define WIFI_SSID "your-ssid"
+#define WIFI_PASS "your-password"
+
+// Hue Bridge 設定 (空文字なら自動セットアップ)
+#define HUE_BRIDGE_IP   ""   // 空文字 → 自動探索 / または "192.168.1.10"
+#define HUE_API_KEY     ""   // 空文字 → Bridge ボタン押下で自動取得
+#define HUE_SENSOR_NAME ""   // 空文字 → M5Stack 上で一覧から選択
+
+// ポーリング間隔 (ms)
+#define POLL_INTERVAL 2000
+
+// 未検知リセット時間 (ms) - この時間未検知が続くとタイマーをリセット
+#define RESET_TIMEOUT 180000
+
+// スピーカー音量 (0-255)
+#define SPEAKER_VOLUME 200
+
+// Web サーバー (リモートアラート用、空文字なら無効)
+#define WEB_SERVER_URL ""
+
+// 緊急アラートの分数 (Web から動的に変更可能)
+#define DEFAULT_URGENT_MINUTE 20
+
+// アラートを鳴らす分数 (最大5つ、0 で無効)
+#define ALERT_MIN_1  15
+#define ALERT_MIN_2  20
+#define ALERT_MIN_3  30
+#define ALERT_MIN_4  45
+#define ALERT_MIN_5  60
+
+#endif

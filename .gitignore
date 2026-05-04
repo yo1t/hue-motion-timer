@@ -1,0 +1,13 @@
+# 秘密情報を含む設定ファイル
+hue_motion_timer/config.h
+
+# Web版
+hue_motion_web/config.json
+hue_motion_web/state.json
+hue_motion_web/node_modules/
+
+# SSH鍵
+pem/
+
+# IDE
+.vscode/

@@ -1,0 +1,12 @@
+{
+  "name": "hue-motion-web",
+  "version": "1.0.0",
+  "description": "Hue Motion Sensor Timer - Web version",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}

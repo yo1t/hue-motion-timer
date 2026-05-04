@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hue Motion Timer</title>
+  <link rel="stylesheet" href="/hue/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 設定画面 -->
+    <div id="setup-screen" class="screen hidden">
+      <h1>設定</h1>
+
+      <div class="step">
+        <h2>Bridge IP</h2>
+        <div class="setting-current" id="cfg-bridge">未設定</div>
+        <div class="setting-actions">
+          <button onclick="discover()">自動探索</button>
+        </div>
+        <div class="setting-actions">
+          <input type="text" id="scan-range" placeholder="192.168.1" class="setting-input">
+          <button onclick="scanRange()">レンジ探索</button>
+        </div>
+        <div class="setting-actions">
+          <input type="text" id="bridge-ip-input" placeholder="192.168.x.x" class="setting-input">
+          <button onclick="setBridgeIP()">手動設定</button>
+        </div>
+        <span id="bridge-status" class="setting-status"></span>
+      </div>
+
+      <div class="step">
+        <h2>API キー</h2>
+        <div class="setting-current" id="cfg-apikey">未設定</div>
+        <p class="setting-hint">Hue Bridge のボタンを押してからクリック</p>
+        <div class="setting-actions">
+          <button onclick="pair()">ペアリング</button>
+        </div>
+        <span id="pair-status" class="setting-status"></span>
+      </div>
+
+      <div class="step">
+        <h2>センサー</h2>
+        <div class="setting-current" id="cfg-sensor">未設定</div>
+        <div class="setting-actions">
+          <button onclick="loadSensors()">一覧取得</button>
+        </div>
+        <div class="setting-actions" id="sensor-select-row" style="display:none">
+          <select id="sensor-select"></select>
+          <button onclick="selectSensor()">変更</button>
+        </div>
+      </div>
+
+      <div class="step">
+        <h2>緊急アラート</h2>
+        <div class="setting-current" id="cfg-urgent">20分</div>
+        <div class="setting-actions">
+          <input type="number" id="urgent-input" placeholder="20" min="1" max="120" class="setting-input" style="width:80px">
+          <span>分</span>
+          <button onclick="setUrgentMinute()">変更</button>
+        </div>
+        <span id="urgent-status" class="setting-status"></span>
+      </div>
+
+      <button class="back-btn" onclick="showMain()">戻る</button>
+    </div>
+
+    <!-- メイン画面 -->
+    <div id="main-screen" class="screen">
+      <header>
+        <h1>Hue Motion Timer</h1>
+        <div class="header-info">
+          <span id="m5-status" class="m5-badge offline">M5</span>
+          <span id="clock"></span>
+          <span id="connection" class="dot"></span>
+        </div>
+      </header>
+
+      <div class="sensor-info">
+        <span id="sensor-name"></span>
+      </div>
+
+      <div class="status-section">
+        <div class="label">状態</div>
+        <div id="status" class="status waiting">待機中...</div>
+      </div>
+
+      <div class="timer-section">
+        <div id="timer" class="timer">--:--:--</div>
+      </div>
+
+      <div class="daily-max">
+        <span id="daily-max"></span>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="main-chart"></canvas>
+      </div>
+
+      <nav class="bottom-nav">
+        <button onclick="showSetup()">設定</button>
+        <button onclick="showLogs()">ログ</button>
+        <button onclick="showDaily()">日別</button>
+        <button onclick="sendAlert()" class="alert-btn">🔔 アラート</button>
+        <button onclick="sendUrgent()" class="urgent-btn">🚨 緊急</button>
+      </nav>
+    </div>
+
+    <!-- ログ画面 -->
+    <div id="log-screen" class="screen hidden">
+      <h2>ログ</h2>
+      <div id="log-list" class="log-list"></div>
+      <button class="back-btn" onclick="showMain()">戻る</button>
+    </div>
+
+    <!-- 日別画面 -->
+    <div id="daily-screen" class="screen hidden">
+      <h2>日別サマリー</h2>
+      <div id="daily-list" class="daily-list"></div>
+      <div class="chart-container">
+        <canvas id="daily-chart"></canvas>
+      </div>
+      <button class="back-btn" onclick="showMain()">戻る</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7"></script>
+  <script src="/hue/app.js"></script></script>
+</body>
+</html>
