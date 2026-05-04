@@ -1,0 +1,2 @@
+*.ino linguist-language=C++
+*.js linguist-detectable=true
