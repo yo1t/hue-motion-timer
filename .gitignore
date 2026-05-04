@@ -1,12 +1,12 @@
-# 秘密情報を含む設定ファイル
+# Config files with secrets
 hue_motion_timer/config.h
 
-# Web版
+# Web version
 hue_motion_web/config.json
 hue_motion_web/state.json
 hue_motion_web/node_modules/
 
-# SSH鍵
+# SSH keys
 pem/
 
 # IDE

@@ -1,43 +1,43 @@
 /*
- * config.h - 接続設定ファイル
+ * config.h - Configuration file
  *
- * このファイルをコピーして config.h を作成し、値を埋めてください。
+ * Copy this file to config.h and fill in your values.
  *   cp config.h.example config.h
  *
- * すべて空文字にしておけば M5Stack 上で自動セットアップが走ります:
- *   - Bridge IP: mDNS / Cloud で自動探索
- *   - API Key:   Bridge ボタン押下で自動取得
- *   - Sensor:    一覧から M5Stack のボタンで選択
+ * Leave Hue settings empty for auto-setup on M5Stack.
  */
 
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// WiFi 設定 (空文字の場合はシリアルモニタから入力)
+// WiFi settings (empty = serial input on boot)
 #define WIFI_SSID "your-ssid"
 #define WIFI_PASS "your-password"
 
-// Hue Bridge 設定 (空文字なら自動セットアップ)
-#define HUE_BRIDGE_IP   ""   // 空文字 → 自動探索 / または "192.168.1.10"
-#define HUE_API_KEY     ""   // 空文字 → Bridge ボタン押下で自動取得
-#define HUE_SENSOR_NAME ""   // 空文字 → M5Stack 上で一覧から選択
+// Hue Bridge settings (empty = auto-setup)
+#define HUE_BRIDGE_IP   ""   // empty = auto-discover
+#define HUE_API_KEY     ""   // empty = auto-generate via button press
+#define HUE_SENSOR_NAME ""   // empty = select from list on screen
 
-// ポーリング間隔 (ms)
+// Polling interval (ms)
 #define POLL_INTERVAL 2000
 
-// 未検知リセット時間 (ms) - この時間未検知が続くとタイマーをリセット
+// No-motion reset timeout (ms) - timer resets after this duration of no motion
 #define RESET_TIMEOUT 180000
 
-// スピーカー音量 (0-255)
+// Speaker volume (0-255)
 #define SPEAKER_VOLUME 200
 
-// Web サーバー (リモートアラート用、空文字なら無効)
+// UI language (0 = Japanese, 1 = English)
+#define UI_LANG 0
+
+// Web server URL for remote alerts (empty = disabled)
 #define WEB_SERVER_URL ""
 
-// 緊急アラートの分数 (Web から動的に変更可能)
+// Urgent alert minute (can be overridden from web)
 #define DEFAULT_URGENT_MINUTE 20
 
-// アラートを鳴らす分数 (最大5つ、0 で無効)
+// Alert schedule (up to 5, set to 0 to disable)
 #define ALERT_MIN_1  15
 #define ALERT_MIN_2  20
 #define ALERT_MIN_3  30

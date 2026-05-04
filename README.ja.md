@@ -92,7 +92,8 @@ Node.js + Apache リバースプロキシで動作するブラウザベースの
 
 1. 設定ファイルのテンプレートをコピー:
    ```bash
-   cp hue_motion_timer/config.h.example hue_motion_timer/config.h
+   cp hue_motion_timer/config.h.ja.example hue_motion_timer/config.h
+   # 英語コメント版: cp hue_motion_timer/config.h.example hue_motion_timer/config.h
    ```
 
 2. `config.h` に WiFi 情報を記入。Hue の設定は空欄のままで自動セットアップ可能:
@@ -105,6 +106,7 @@ Node.js + Apache リバースプロキシで動作するブラウザベースの
    #define POLL_INTERVAL   2000
    #define RESET_TIMEOUT   180000
    #define SPEAKER_VOLUME  200
+   #define UI_LANG 0
    #define WEB_SERVER_URL  ""
    #define DEFAULT_URGENT_MINUTE 20
    #define ALERT_MIN_1  15
@@ -172,7 +174,8 @@ Node.js + Apache リバースプロキシで動作するブラウザベースの
      "urgentMinute": 20,
      "authUser": "admin",
      "authPass": "",
-     "allowedNetworks": ["192.168.1.0/24", "10.0.0.0/8", "127.0.0.1/32"]
+     "allowedNetworks": ["192.168.1.0/24", "10.0.0.0/8", "127.0.0.1/32"],
+     "lang": "ja"
    }
    ```
 
@@ -230,8 +233,11 @@ M5Stack の `config.h` で `WEB_SERVER_URL` を設定すると以下が有効に
 ```
 ├── hue_motion_timer/          # M5Stack 版
 │   ├── hue_motion_timer.ino   # メインスケッチ
+│   ├── lang_ja.h              # 日本語 UI 文字列
+│   ├── lang_en.h              # 英語 UI 文字列
 │   ├── config.h               # 設定ファイル (git 除外)
-│   └── config.h.example       # テンプレート
+│   ├── config.h.example       # テンプレート (英語)
+│   └── config.h.ja.example    # テンプレート (日本語)
 ├── hue_motion_web/            # Web 版
 │   ├── server.js              # Node.js バックエンド
 │   ├── config.json            # 設定ファイル (git 除外)

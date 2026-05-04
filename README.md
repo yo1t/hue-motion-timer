@@ -93,6 +93,8 @@ Both versions share the same Hue Bridge and can run simultaneously. Each version
 1. Copy the config template:
    ```bash
    cp hue_motion_timer/config.h.example hue_motion_timer/config.h
+   # Or for Japanese comments:
+   # cp hue_motion_timer/config.h.ja.example hue_motion_timer/config.h
    ```
 
 2. Edit `config.h` with your WiFi credentials. Hue settings can be left empty for auto-setup:
@@ -105,6 +107,7 @@ Both versions share the same Hue Bridge and can run simultaneously. Each version
    #define POLL_INTERVAL   2000
    #define RESET_TIMEOUT   180000
    #define SPEAKER_VOLUME  200
+   #define UI_LANG 0
    #define WEB_SERVER_URL  ""
    #define DEFAULT_URGENT_MINUTE 20
    #define ALERT_MIN_1  15
@@ -172,7 +175,8 @@ Plays an alert melody at configurable intervals (default: 15, 20, 30, 45, 60 min
      "urgentMinute": 20,
      "authUser": "admin",
      "authPass": "",
-     "allowedNetworks": ["192.168.1.0/24", "10.0.0.0/8", "127.0.0.1/32"]
+     "allowedNetworks": ["192.168.1.0/24", "10.0.0.0/8", "127.0.0.1/32"],
+     "lang": "ja"
    }
    ```
 
@@ -230,8 +234,11 @@ Set `WEB_SERVER_URL` in M5Stack's `config.h` to enable:
 ```
 ├── hue_motion_timer/          # M5Stack version
 │   ├── hue_motion_timer.ino   # Main sketch
+│   ├── lang_ja.h              # Japanese UI strings
+│   ├── lang_en.h              # English UI strings
 │   ├── config.h               # Settings (git-ignored)
-│   └── config.h.example       # Template
+│   ├── config.h.example       # Template (English)
+│   └── config.h.ja.example    # Template (Japanese)
 ├── hue_motion_web/            # Web version
 │   ├── server.js              # Node.js backend
 │   ├── config.json            # Settings (git-ignored)

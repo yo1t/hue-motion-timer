@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const net = require('net');
 
-// ─── 設定読み込み & バリデーション ───
+// ─── Load configuration & validation ───
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 
 let config;
@@ -17,7 +17,7 @@ try {
   process.exit(1);
 }
 
-// デフォルト値の補完
+// Fill in default values
 const DEFAULTS = {
   bridgeIP: '',
   apiKey: '',
@@ -30,6 +30,7 @@ const DEFAULTS = {
   authUser: 'admin',
   authPass: '',
   allowedNetworks: [],
+  lang: 'ja',
 };
 
 for (const [key, defaultVal] of Object.entries(DEFAULTS)) {
@@ -39,7 +40,7 @@ for (const [key, defaultVal] of Object.entries(DEFAULTS)) {
   }
 }
 
-// 型チェック
+// Type checking
 const configErrors = [];
 if (typeof config.port !== 'number' || config.port < 1 || config.port > 65535)
   configErrors.push('port must be 1-65535');
@@ -64,10 +65,10 @@ console.log('[Config] Loaded successfully');
 
 const app = express();
 
-// ─── セキュリティ: trust proxy (Apache リバースプロキシ対応) ───
+// ─── Security: trust proxy (Apache reverse proxy support) ───
 app.set('trust proxy', 'loopback');
 
-// ─── セキュリティ: ヘッダー ───
+// ─── Security: Headers ───
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -76,7 +77,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ─── セキュリティ: IP ホワイトリスト ───
+// ─── Security: IP whitelist ───
 const ALLOWED_NETWORKS = config.allowedNetworks || [];
 
 function ipToLong(ip) {
@@ -84,9 +85,9 @@ function ipToLong(ip) {
 }
 
 function isAllowedIP(clientIP) {
-  if (ALLOWED_NETWORKS.length === 0) return true; // 未設定なら全許可
+  if (ALLOWED_NETWORKS.length === 0) return true; // Allow all if not configured
 
-  // IPv6-mapped IPv4 を変換 (::ffff:192.168.1.1 → 192.168.1.1)
+  // Convert IPv6-mapped IPv4 (::ffff:192.168.1.1 → 192.168.1.1)
   let ip = clientIP;
   if (ip.startsWith('::ffff:')) ip = ip.slice(7);
 
@@ -108,12 +109,12 @@ app.use('/hue', (req, res, next) => {
   next();
 });
 
-// ─── セキュリティ: Basic 認証 ───
+// ─── Security: Basic authentication ───
 const AUTH_USER = config.authUser || 'admin';
 const AUTH_PASS = config.authPass || '';
 
 function basicAuth(req, res, next) {
-  // 認証が設定されていなければスキップ
+  // Skip if authentication is not configured
   if (!AUTH_PASS) return next();
 
   const authHeader = req.headers.authorization;
@@ -125,7 +126,7 @@ function basicAuth(req, res, next) {
   const decoded = Buffer.from(authHeader.slice(6), 'base64').toString();
   const [user, pass] = decoded.split(':');
 
-  // タイミング攻撃対策 (長さ不一致でもクラッシュしない)
+  // Timing attack prevention (safe even with length mismatch)
   const userHash = crypto.createHash('sha256').update(user || '').digest();
   const passHash = crypto.createHash('sha256').update(pass || '').digest();
   const expectedUserHash = crypto.createHash('sha256').update(AUTH_USER).digest();
@@ -141,10 +142,10 @@ function basicAuth(req, res, next) {
 
 app.use('/hue', basicAuth);
 
-// ─── セキュリティ: レート制限 (簡易) ───
+// ─── Security: Rate limiting (simple) ───
 const rateLimitMap = new Map();
-const RATE_LIMIT_WINDOW = 60000; // 1分
-const RATE_LIMIT_MAX = 120;      // 1分あたり120リクエスト
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX = 120;      // 120 requests per minute
 
 function rateLimit(req, res, next) {
   const ip = req.ip;
@@ -167,7 +168,7 @@ function rateLimit(req, res, next) {
 
 app.use('/hue/api', rateLimit);
 
-// レート制限マップの定期クリーンアップ (1分ごと)
+// Periodic cleanup of rate limit map (every 1 minute)
 setInterval(() => {
   const now = Date.now();
   for (const [ip, entry] of rateLimitMap) {
@@ -175,17 +176,17 @@ setInterval(() => {
   }
 }, 60000);
 
-// ─── 静的ファイル & JSON パーサー ───
+// ─── Static files & JSON parser ───
 app.use('/hue', express.static(path.join(__dirname, 'public')));
-app.use(express.json({ limit: '1kb' })); // ボディサイズ制限
+app.use(express.json({ limit: '1kb' })); // Body size limit
 
-// ルートへのリダイレクト
+// Redirect to root
 app.get('/hue', (req, res) => {
   if (!req.path.endsWith('/')) return res.redirect('/hue/');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ─── 状態管理 ───
+// ─── State management ───
 let state = {
   presence: false,
   everDetected: false,
@@ -203,10 +204,10 @@ let state = {
 
 const MAX_LOGS = 1000;
 
-// ─── セキュリティ: IP バリデーション ───
+// ─── Security: IP validation ───
 function isValidPrivateIP(ip) {
   if (!ip || typeof ip !== 'string') return false;
-  // プライベート IP のみ許可
+  // Allow private IP ranges only
   return /^(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})$/.test(ip);
 }
 
@@ -224,7 +225,7 @@ function hueRequest(apiPath) {
     const url = `https://${config.bridgeIP}${apiPath}`;
     const req = https.get(url, { rejectUnauthorized: false, timeout: 5000, agent: false }, (res) => {
       let data = '';
-      // レスポンスサイズ制限 (1MB)
+      // Response size limit (1MB)
       let size = 0;
       res.on('data', chunk => {
         size += chunk.length;
@@ -269,7 +270,7 @@ function huePost(apiPath, body) {
   });
 }
 
-// ─── センサー ID 解決 ───
+// ─── Resolve sensor ID ───
 async function resolveSensorID() {
   if (!config.bridgeIP || !config.apiKey) return false;
   try {
@@ -289,7 +290,7 @@ async function resolveSensorID() {
   return false;
 }
 
-// ─── センサー状態ポーリング ───
+// ─── Sensor state polling ───
 async function pollSensor() {
   if (!state.sensorID || !config.bridgeIP || !config.apiKey) return;
   try {
@@ -333,7 +334,7 @@ async function pollSensor() {
   }
 }
 
-// ─── ログ保存 ───
+// ─── Save log ───
 function saveLog(elapsedMs) {
   const now = new Date();
   const entry = {
@@ -362,7 +363,7 @@ function saveLog(elapsedMs) {
   saveState();
 }
 
-// ─── 永続化 ───
+// ─── Persistence ───
 const STATE_FILE = path.join(__dirname, 'state.json');
 
 function saveState() {
@@ -370,7 +371,7 @@ function saveState() {
     const data = {
       logs: state.logs,
       dailyStats: state.dailyStats,
-      // タイマー状態
+      // Timer state
       timer: {
         everDetected: state.everDetected,
         startTime: state.startTime ? state.startTime.toISOString() : null,
@@ -394,7 +395,7 @@ function loadState() {
       state.logs = data.logs || [];
       state.dailyStats = data.dailyStats || {};
 
-      // タイマー復元 (保存から1分以内なら)
+      // Restore timer (only if saved within the last 1 minute)
       if (data.timer && data.timer.savedAt) {
         const savedAt = new Date(data.timer.savedAt).getTime();
         const elapsed = Date.now() - savedAt;
@@ -414,7 +415,7 @@ function loadState() {
   }
 }
 
-// ─── API エンドポイント ───
+// ─── API endpoints ───
 app.get('/hue/api/state', (req, res) => {
   const now = Date.now();
   let elapsed = 0;
@@ -447,12 +448,13 @@ app.get('/hue/api/state', (req, res) => {
     elapsed,
     connected: state.connected,
     sensorName: state.sensorName,
-    // bridgeIP は内部情報なので公開しない
+    // Do not expose bridgeIP as it is internal information
     configured: !!(config.bridgeIP && config.sensorName),
     dailyMax: dailyMaxDisplay,
     todayMaxTime: getTodayMaxTime(),
     alertTriggered,
     m5Online: (Date.now() - m5LastSeen) < 15000,
+    lang: config.lang || 'ja',
   });
 });
 
@@ -464,7 +466,7 @@ app.get('/hue/api/daily', (req, res) => {
   res.json(state.dailyStats);
 });
 
-// Bridge 探索
+// Bridge discovery
 app.post('/hue/api/discover', async (req, res) => {
   try {
     const resp = await fetch('https://discovery.meethue.com');
@@ -486,14 +488,14 @@ app.post('/hue/api/discover', async (req, res) => {
   }
 });
 
-// Bridge IP レンジスキャン (1個ずつ、低負荷)
+// Bridge IP range scan (one at a time, low load)
 app.post('/hue/api/scan', async (req, res) => {
   const { range } = req.body;
   if (!range || typeof range !== 'string' || !/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(range)) {
     return res.status(400).json({ success: false, error: 'Invalid range' });
   }
 
-  // プライベート IP レンジのみ許可
+  // Allow private IP ranges only
   if (!range.startsWith('10.') && !range.startsWith('172.') && !range.startsWith('192.168.')) {
     return res.status(400).json({ success: false, error: 'Private IP range only' });
   }
@@ -524,7 +526,7 @@ app.post('/hue/api/scan', async (req, res) => {
     });
   }
 
-  // 全 IP を並列スキャン (Bridge は1台なので負荷は低い)
+  // Scan all IPs in parallel (low load since there is typically only one bridge)
   const promises = [];
   for (let i = 1; i <= 254; i++) {
     promises.push(probeIP(`${range}.${i}`));
@@ -543,7 +545,7 @@ app.post('/hue/api/scan', async (req, res) => {
   res.json({ success: false, error: 'No bridge found' });
 });
 
-// Bridge IP 手動設定
+// Manually set bridge IP
 app.post('/hue/api/set-bridge', (req, res) => {
   const { ip } = req.body;
   if (!ip || typeof ip !== 'string' || !isValidPrivateIP(ip)) {
@@ -555,7 +557,7 @@ app.post('/hue/api/set-bridge', (req, res) => {
   res.json({ success: true, ip });
 });
 
-// API キー生成
+// Generate API key
 app.post('/hue/api/pair', async (req, res) => {
   try {
     const result = await huePost('/api', { devicetype: 'hue_motion_web#browser' });
@@ -572,7 +574,7 @@ app.post('/hue/api/pair', async (req, res) => {
   }
 });
 
-// センサー一覧
+// Sensor list
 app.get('/hue/api/sensors', async (req, res) => {
   try {
     const sensors = await hueRequest(`/api/${config.apiKey}/sensors`);
@@ -586,7 +588,7 @@ app.get('/hue/api/sensors', async (req, res) => {
   }
 });
 
-// センサー選択 (入力バリデーション付き)
+// Select sensor (with input validation)
 app.post('/hue/api/select-sensor', (req, res) => {
   const { name } = req.body;
   if (!isValidSensorName(name)) {
@@ -598,7 +600,7 @@ app.post('/hue/api/select-sensor', (req, res) => {
   resolveSensorID().then(ok => res.json({ success: ok }));
 });
 
-// 現在の設定を返す (秘密情報はマスク)
+// Return current configuration (mask sensitive info)
 app.get('/hue/api/config', (req, res) => {
   res.json({
     bridgeIP: config.bridgeIP || '',
@@ -609,7 +611,18 @@ app.get('/hue/api/config', (req, res) => {
   });
 });
 
-// 緊急アラート分数の変更
+// Change language
+app.post('/hue/api/set-lang', (req, res) => {
+  const { lang } = req.body;
+  if (lang !== 'ja' && lang !== 'en') {
+    return res.status(400).json({ success: false, error: 'Invalid lang (ja or en)' });
+  }
+  config.lang = lang;
+  saveConfig();
+  res.json({ success: true, lang });
+});
+
+// Change urgent alert minute
 app.post('/hue/api/set-urgent', (req, res) => {
   const { minute } = req.body;
   if (typeof minute !== 'number' || minute < 1 || minute > 120) {
@@ -620,7 +633,7 @@ app.post('/hue/api/set-urgent', (req, res) => {
   res.json({ success: true, urgentMinute: minute });
 });
 
-// ─── M5Stack リモートアラート ───
+// ─── M5Stack remote alert ───
 let m5AlertPending = false;
 let m5UrgentPending = false;
 let m5LastSeen = 0;
@@ -662,7 +675,7 @@ function saveConfig() {
   fs.writeFileSync(path.join(__dirname, 'config.json'), JSON.stringify(config, null, 2));
 }
 
-// ─── 起動 ───
+// ─── Startup ───
 loadState();
 
 async function init() {
@@ -672,7 +685,7 @@ async function init() {
   setInterval(pollSensor, config.pollInterval);
   setInterval(saveState, 10000);
 
-  // セキュリティ: localhost のみリッスン
+  // Security: Listen on localhost only
   app.listen(config.port, '127.0.0.1', () => {
     console.log(`Hue Motion Web running at http://127.0.0.1:${config.port}`);
   });

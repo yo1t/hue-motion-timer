@@ -1,23 +1,23 @@
 /*
  * Hue Motion Sensor Timer for M5Stack
  *
- * 機能:
- *   1. Hue Bridge を自動探索 (mDNS + discovery.meethue.com)
- *   2. Bridge のボタン押下を待って API キーを自動取得
- *   3. センサー一覧から人感センサーを選択 (ボタン操作)
- *   4. 人感センサーの検知からの経過時間をリアルタイム表示
+ * Features:
+ *   1. Auto-discover Hue Bridge (mDNS + discovery.meethue.com)
+ *   2. Wait for Bridge button press to auto-generate API key
+ *   3. Select presence sensor from sensor list (button UI)
+ *   4. Real-time display of elapsed time since motion detection
  *
- * 設定は NVS に保存され、2回目以降は自動接続する。
- * config.h に事前設定しておけばセットアップをスキップ可能。
+ * Settings are saved to NVS; auto-connects from the second boot onward.
+ * Pre-configure config.h to skip the setup wizard.
  *
- * ボタン操作 (メイン画面):
- *   BtnA (左)  : 設定リセット → 再起動
- *   BtnC (右)  : 手動リフレッシュ
+ * Button controls (main screen):
+ *   BtnA (left)  : Reset settings -> reboot
+ *   BtnC (right) : Manual refresh
  *
- * 必要ライブラリ:
+ * Required libraries:
  *   - M5Unified
  *   - ArduinoJson
- *   - WiFi / HTTPClient / Preferences / ESPmDNS (ESP32 標準)
+ *   - WiFi / HTTPClient / Preferences / ESPmDNS (ESP32 built-in)
  */
 
 #include <M5Unified.h>
@@ -30,7 +30,14 @@
 
 #include "config.h"
 
-// ─── config.h バリデーション ───
+// ─── Language file ───
+#if UI_LANG == 1
+  #include "lang_en.h"
+#else
+  #include "lang_ja.h"
+#endif
+
+// ─── config.h validation ───
 #if POLL_INTERVAL < 500
   #error "POLL_INTERVAL must be >= 500"
 #endif
@@ -44,21 +51,28 @@
   #error "DEFAULT_URGENT_MINUTE must be >= 0"
 #endif
 
-// efont 日本語フォントデータ
-#include <lgfx/Fonts/efont/lgfx_efont_ja.h>
+// efont Japanese font data (loaded based on language setting)
+#if USE_EFONT
+  static const lgfx::U8g2font fontJA10(lgfx_efont_ja_10);
+  static const lgfx::U8g2font fontJA12(lgfx_efont_ja_12);
+  static const lgfx::U8g2font fontJA14(lgfx_efont_ja_14);
+  static const lgfx::U8g2font fontJA16(lgfx_efont_ja_16);
+  static const lgfx::U8g2font fontJA24(lgfx_efont_ja_24);
+  void setFontSmall()  { M5.Display.setFont(&fontJA10); }
+  void setFontMed()    { M5.Display.setFont(&fontJA14); }
+  void setFontLarge()  { M5.Display.setFont(&fontJA16); }
+  void setFontXL()     { M5.Display.setFont(&fontJA24); }
+#else
+  void setFontSmall()  { M5.Display.setTextSize(1); }
+  void setFontMed()    { M5.Display.setTextSize(2); }
+  void setFontLarge()  { M5.Display.setTextSize(2); }
+  void setFontXL()     { M5.Display.setTextSize(3); }
+#endif
 
-// ─── 日本語フォント定義 ─────────────────────────────
-// efont: 10, 12, 14, 16, 24px が利用可能
-static const lgfx::U8g2font fontJA10(lgfx_efont_ja_10);
-static const lgfx::U8g2font fontJA12(lgfx_efont_ja_12);
-static const lgfx::U8g2font fontJA14(lgfx_efont_ja_14);
-static const lgfx::U8g2font fontJA16(lgfx_efont_ja_16);
-static const lgfx::U8g2font fontJA24(lgfx_efont_ja_24);
-
-// ─── HTTPS クライアント (Bridge は自己署名証明書) ───
+// ─── HTTPS client (Bridge uses self-signed cert) ───
 WiFiClientSecure secureClient;
 
-// ─── グローバル変数 ─────────────────────────────────
+// ─── Global variables ─────────────────────────────────
 Preferences prefs;
 
 String bridgeIP;
@@ -70,8 +84,8 @@ String wifiPass;
 
 bool presenceDetected = false;
 unsigned long lastDetectedMillis = 0;
-unsigned long lastNoMotionMillis = 0;  // 未検知が始まった時刻
-unsigned long lastPresenceMillis = 0;  // 最後に検知した時刻 (表示ホールド用)
+unsigned long lastNoMotionMillis = 0;  // Time when no-motion started
+unsigned long lastPresenceMillis = 0;  // Last detection time (for display hold)
 bool everDetected = false;
 String lastUpdated = "";
 
@@ -80,32 +94,26 @@ String prevStatusStr  = "";
 int prevBattPct = -1;
 String prevTimeStr = "";
 
-// アラート管理: 各閾値で1回だけ鳴らす
+// Alert management: fire once per threshold
 bool alertFired[5] = {false, false, false, false, false};
 
-// 起動後の復元フラグ
+// Boot recovery flag
 bool bootRecoveryDone = false;
 
-// 緊急アラートの分数 (Web から動的に変更可能)
+// Urgent alert minute (can be overridden from web)
 int urgentMinute = DEFAULT_URGENT_MINUTE;
 
-// 日次最長記録
+// Daily max record
 unsigned long dailyMaxMs = 0;
-int dailyMaxDay = -1;  // tm_yday で管理
+int dailyMaxDay = -1;  // tracked by tm_yday
 String prevRecordStr = "";
 
-// Bridge API の URL を構築するヘルパー
+// Helper to build Bridge API URL
 String bridgeURL(String path) {
   return "https://" + bridgeIP + path;
 }
 
-// フォント設定ヘルパー
-void setFontSmall()  { M5.Display.setFont(&fontJA10); }
-void setFontMed()    { M5.Display.setFont(&fontJA14); }
-void setFontLarge()  { M5.Display.setFont(&fontJA16); }
-void setFontXL()     { M5.Display.setFont(&fontJA24); }
-
-// ─── プロトタイプ ───────────────────────────────────
+// ─── Prototypes ───────────────────────────────────
 void setupWiFi();
 void setupHueBridge();
 void setupHueApiKey();
@@ -157,7 +165,7 @@ void setup() {
   setupHueApiKey();
   setupHueSensor();
 
-  // タイマー状態の復元 (再起動から1分以内なら)
+  // Restore timer state (if within 1 minute of reboot)
   restoreTimerState();
 
   M5.Display.fillScreen(TFT_BLACK);
@@ -184,7 +192,7 @@ void loop() {
     drawUI(true);
   }
 
-  // WiFi 切断時の自動再接続
+  // Auto-reconnect on WiFi disconnect
   if (WiFi.status() != WL_CONNECTED) {
     WiFi.reconnect();
     delay(1000);
@@ -199,14 +207,14 @@ void loop() {
   drawUI(false);
   checkAlerts();
 
-  // Web からのリモートアラートをポーリング (5秒ごと)
+  // Poll remote alert from web server (every 5s)
   static unsigned long lastAlertCheck = 0;
   if (millis() - lastAlertCheck >= 5000) {
     lastAlertCheck = millis();
     checkRemoteAlert();
   }
 
-  // 10秒ごとにタイマー状態を NVS に保存
+  // Save timer state to NVS every 10s
   static unsigned long lastSave = 0;
   if (millis() - lastSave >= 10000) {
     lastSave = millis();
@@ -217,7 +225,7 @@ void loop() {
 }
 
 // ═══════════════════════════════════════════════════
-// WiFi 接続
+// WiFi connection
 // ═══════════════════════════════════════════════════
 void setupWiFi() {
   wifiSSID = prefs.getString("ssid", WIFI_SSID);
@@ -236,12 +244,12 @@ void setupWiFi() {
   setFontMed();
   M5.Display.printf("WiFi: %s\n", wifiSSID.c_str());
 
-  // WiFi モジュール初期化
+  // WiFi module initialization
   WiFi.mode(WIFI_STA);
   WiFi.disconnect(true);
   delay(1000);
 
-  // 最大3回リトライ
+  // Retry up to 3 times
   for (int attempt = 1; attempt <= 3; attempt++) {
     WiFi.begin(wifiSSID.c_str(), wifiPass.c_str());
 
@@ -267,14 +275,14 @@ void setupWiFi() {
   M5.Display.printf("\nIP: %s\n", WiFi.localIP().toString().c_str());
   secureClient.setInsecure();
 
-  // NTP 時刻同期 (JST = UTC+9)
+  // NTP time sync (JST = UTC+9)
   configTime(9 * 3600, 0, "ntp.nict.jp", "pool.ntp.org");
 
   delay(500);
 }
 
 // ═══════════════════════════════════════════════════
-// Bridge 探索
+// Bridge discovery
 // ═══════════════════════════════════════════════════
 void setupHueBridge() {
   bridgeIP = prefs.getString("bridge", HUE_BRIDGE_IP);
@@ -332,7 +340,7 @@ bool discoverBridgeCloud() {
 }
 
 // ═══════════════════════════════════════════════════
-// API キー取得
+// API key generation
 // ═══════════════════════════════════════════════════
 void setupHueApiKey() {
   apiKey = prefs.getString("apikey", HUE_API_KEY);
@@ -393,7 +401,7 @@ String generateApiKey() {
 
   if (code <= 0) {
     Serial.printf("[Hue] Connection error: %s\n", http.errorToString(code).c_str());
-    // LCD にもエラー表示
+    // Show error on LCD
     setFontSmall();
     M5.Display.fillRect(0, 160, 320, 14, TFT_BLACK);
     M5.Display.setTextColor(TFT_RED, TFT_BLACK);
@@ -413,7 +421,7 @@ String generateApiKey() {
   const char* username = doc[0]["success"]["username"] | "";
   if (strlen(username) > 0) return String(username);
 
-  // エラー内容を LCD に表示
+  // Show error details on LCD
   int errType = doc[0]["error"]["type"] | 0;
   const char* errDesc = doc[0]["error"]["description"] | "unknown";
   Serial.printf("[Hue] API key error type: %d, desc: %s\n", errType, errDesc);
@@ -426,7 +434,7 @@ String generateApiKey() {
 }
 
 // ═══════════════════════════════════════════════════
-// センサー選択
+// Sensor selection
 // ═══════════════════════════════════════════════════
 void setupHueSensor() {
   sensorName = prefs.getString("sname", HUE_SENSOR_NAME);
@@ -477,7 +485,7 @@ void setupHueSensor() {
 
   if (count == 0) { haltWithError("人感センサーが見つかりません"); }
 
-  // 選択 UI
+  // Selection UI
   int selected = 0;
   bool needRedraw = true;
 
@@ -542,7 +550,7 @@ void setupHueSensor() {
 }
 
 // ═══════════════════════════════════════════════════
-// センサー名 → ID 解決
+// Resolve sensor name to ID
 // ═══════════════════════════════════════════════════
 bool resolveSensorID() {
   if (WiFi.status() != WL_CONNECTED) return false;
@@ -569,7 +577,7 @@ bool resolveSensorID() {
 }
 
 // ═══════════════════════════════════════════════════
-// センサー状態取得
+// Fetch sensor state
 // ═══════════════════════════════════════════════════
 bool fetchSensorState() {
   if (WiFi.status() != WL_CONNECTED) return false;
@@ -590,34 +598,34 @@ bool fetchSensorState() {
   lastUpdated = String(updatedStr);
 
   if (newPresence && !everDetected) {
-    // 初回検知のみタイマー開始
+    // Start timer on first detection only
     lastDetectedMillis = millis();
     everDetected = true;
   }
 
-  // 検知時に時刻を記録 (表示ホールド用)
+  // Record detection time (for display hold)
   if (newPresence) {
     lastPresenceMillis = millis();
   }
 
-  // 未検知開始時刻の追跡
+  // Track no-motion start time
   if (everDetected) {
     if (newPresence) {
-      // 検知中 → 未検知タイマーをリセット
+      // Motion detected: reset no-motion timer
       lastNoMotionMillis = 0;
     } else if (!newPresence && lastNoMotionMillis == 0) {
-      // 未検知で、まだ未検知開始時刻が記録されていない
+      // No motion and no-motion start not yet recorded
       lastNoMotionMillis = millis();
     }
   }
 
   presenceDetected = newPresence;
 
-  // 未検知が連続3分続いたらタイマーをリセット
+  // Reset timer after continuous no-motion
   if (everDetected && !presenceDetected && lastNoMotionMillis > 0) {
     unsigned long noMotionDuration = millis() - lastNoMotionMillis;
     if (noMotionDuration >= RESET_TIMEOUT) {
-      // ログ保存: 総経過時間から未検知時間を差し引く
+      // Save log: subtract no-motion time from total elapsed
       unsigned long totalElapsed = millis() - lastDetectedMillis;
       unsigned long actualMs = (totalElapsed > RESET_TIMEOUT) ? totalElapsed - RESET_TIMEOUT : 0;
       saveLogEntry(actualMs);
@@ -634,7 +642,7 @@ bool fetchSensorState() {
 }
 
 // ═══════════════════════════════════════════════════
-// LCD 描画
+// LCD rendering
 // ═══════════════════════════════════════════════════
 void drawUI(bool forceRedraw) {
   unsigned long elapsed = everDetected ? millis() - lastDetectedMillis : 0;
@@ -642,7 +650,7 @@ void drawUI(bool forceRedraw) {
   String statusStr;
   uint16_t statusColor;
 
-  // 日次最長記録の更新 (現在のタイマーとの比較用)
+  // Update daily max record (for comparison with current timer)
   struct tm ti;
   if (everDetected && getLocalTime(&ti, 0)) {
     int today = ti.tm_yday;
@@ -655,20 +663,20 @@ void drawUI(bool forceRedraw) {
     }
   }
 
-  // MAX 表示用: 日別統計の最大値と現在タイマーの大きい方
+  // MAX display: larger of daily stats max and current timer
   unsigned long statsMax = getTodayMaxFromStats() * 1000;
-  // 現在進行中のタイマーも考慮 (3分未満でも表示)
+  // Also consider in-progress timer (show even if under 3 min)
   unsigned long currentActual = elapsed;
   unsigned long dailyMaxDisplay = (statsMax > currentActual) ? statsMax : currentActual;
 
   if (!everDetected) {
-    statusStr = "待機中...";
+    statusStr = L_WAITING;
     statusColor = TFT_DARKGREY;
   } else if (presenceDetected || (millis() - lastPresenceMillis < 5000)) {
-    statusStr = "検知!";
+    statusStr = L_DETECTED;
     statusColor = TFT_RED;
   } else {
-    statusStr = "未検知";
+    statusStr = L_NO_MOTION;
     statusColor = TFT_GREEN;
   }
 
@@ -689,16 +697,16 @@ void drawUI(bool forceRedraw) {
     setFontMed();
     M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
     M5.Display.setCursor(20, 65);
-    M5.Display.print("状態:");
+    M5.Display.print(L_STATUS);
 
     setFontSmall();
     M5.Display.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
     M5.Display.setCursor(10, 225);
-    M5.Display.print("[A] 設定");
+    M5.Display.print("[A] "); M5.Display.print(L_SETTINGS);
     M5.Display.setCursor(120, 225);
-    M5.Display.print("[B] ログ");
+    M5.Display.print("[B] "); M5.Display.print(L_LOGS);
     M5.Display.setCursor(240, 225);
-    M5.Display.print("[C] 更新");
+    M5.Display.print("[C] "); M5.Display.print(L_REFRESH);
 
     prevElapsedStr = "";
     prevStatusStr  = "";
@@ -723,11 +731,11 @@ void drawUI(bool forceRedraw) {
     M5.Display.setTextColor(TFT_YELLOW, TFT_BLACK);
     M5.Display.setCursor(10, 125);
     M5.Display.print(elapsedStr);
-    M5.Display.setTextSize(1);  // リセット
+    M5.Display.setTextSize(1);  // reset
     prevElapsedStr = elapsedStr;
   }
 
-  // ── 日次最長記録 (下部) ──
+  // ── Daily max record (bottom) ──
   String recordStr = "";
   if (dailyMaxDisplay > 0 && getLocalTime(&ti, 0)) {
     String maxTime = getTodayMaxTimeFromLog();
@@ -752,7 +760,7 @@ void drawUI(bool forceRedraw) {
     prevRecordStr = recordStr;
   }
 
-  // ── 時計 + バッテリー (右上) ──
+  // ── Clock + Battery (top right) ──
   String timeStr = "";
   if (getLocalTime(&ti, 0)) {
     char tb[6];
@@ -766,14 +774,14 @@ void drawUI(bool forceRedraw) {
     M5.Display.fillRect(180, 0, 140, 18, TFT_BLACK);
     setFontMed();
 
-    // 時計
+    // Clock
     if (timeStr.length() > 0) {
       M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
       M5.Display.setCursor(210, 2);
       M5.Display.print(timeStr);
     }
 
-    // バッテリー
+    // Battery
     uint16_t battColor = (battPct > 50) ? TFT_GREEN : (battPct > 20) ? TFT_YELLOW : TFT_RED;
     M5.Display.setTextColor(battColor, TFT_BLACK);
     M5.Display.setCursor(275, 2);
@@ -785,7 +793,7 @@ void drawUI(bool forceRedraw) {
 }
 
 // ═══════════════════════════════════════════════════
-// ユーティリティ
+// Utilities
 // ═══════════════════════════════════════════════════
 String formatElapsed(unsigned long ms) {
   unsigned long t = ms / 1000;
@@ -840,9 +848,9 @@ void haltWithError(const char* msg) {
 }
 
 // ═══════════════════════════════════════════════════
-// アラートメロディ
+// Alert melody
 // ═══════════════════════════════════════════════════
-// 音符定義: 周波数 (Hz), 0=休符
+// Note definitions: frequency (Hz), 0=rest
 #define NOTE_C4  262
 #define NOTE_D4  294
 #define NOTE_E4  330
@@ -855,17 +863,17 @@ void haltWithError(const char* msg) {
 #define NOTE_E5  659
 #define NOTE_REST 0
 
-// ─── 緊急アラート音 ───
+// ─── Urgent alert sound ───
 void playEvaAlert() {
   M5.Speaker.setVolume(SPEAKER_VOLUME);
 
-  // 高低2音の繰り返し x3
+  // Alternating high-low tones x3
   for (int i = 0; i < 3; i++) {
-    M5.Speaker.tone(988, 300);   // B5 高音
+    M5.Speaker.tone(988, 300);   // B5 high
     delay(300);
     M5.Speaker.stop();
     delay(50);
-    M5.Speaker.tone(740, 300);   // F#5 低音
+    M5.Speaker.tone(740, 300);   // F#5 low
     delay(300);
     M5.Speaker.stop();
     delay(50);
@@ -874,12 +882,12 @@ void playEvaAlert() {
 }
 
 void playHotaruNoHikari() {
-  const int Q = 400;   // 四分音符
-  const int H = 800;   // 二分音符
-  const int E = 200;   // 八分音符
-  const int DQ = 600;  // 付点四分音符
+  const int Q = 400;   // quarter note
+  const int H = 800;   // half note
+  const int E = 200;   // eighth note
+  const int DQ = 600;  // dotted quarter note
 
-  // アラートメロディ (Auld Lang Syne) Key of G
+  // Alert melody (Auld Lang Syne) Key of G
   // D | G  G-G-B | A  G-A-B | G-G-B  D5 | E5
   // E5 | D5  B-B-G | A  G-A | B-A  G-E  E-D | G
   struct { int freq; int dur; } melody[] = {
@@ -911,13 +919,13 @@ void playHotaruNoHikari() {
       M5.Speaker.tone(melody[i].freq, melody[i].dur);
       delay(melody[i].dur);
     }
-    delay(30); // 音符間の隙間
+    delay(30); // gap between notes
   }
   M5.Speaker.stop();
 }
 
 // ═══════════════════════════════════════════════════
-// 経過時間アラートチェック
+// Elapsed time alert check
 // ═══════════════════════════════════════════════════
 void checkAlerts() {
   if (!everDetected) return;
@@ -926,34 +934,34 @@ void checkAlerts() {
   long realMins = (long)elapsed / 60000;
   if (realMins < 0) return;
 
-  // config.h の ALERT_MIN_1~5 を大きい順にチェック
+  // Check ALERT_MIN_1~5 from config.h in descending order
   const int alertMins[5] = {ALERT_MIN_5, ALERT_MIN_4, ALERT_MIN_3, ALERT_MIN_2, ALERT_MIN_1};
 
   for (int i = 0; i < 5; i++) {
-    if (alertMins[i] <= 0) continue;  // 0 は無効
+    if (alertMins[i] <= 0) continue;  // 0 = disabled
     if (realMins >= alertMins[i] && !alertFired[i]) {
       alertFired[i] = true;
       if (alertMins[i] == urgentMinute) {
         playEvaAlert();
       }
       playHotaruNoHikari();
-      break;  // 1回のループで1つだけ鳴らす
+      break;  // only play one alert per loop
     }
   }
 }
 
 // ═══════════════════════════════════════════════════
-// タイマー状態の保存・復元 (NVS + NTP epoch)
+// Timer state save/restore (NVS + NTP epoch)
 // ═══════════════════════════════════════════════════
 void saveTimerState() {
   if (!everDetected) return;
 
   time_t now;
   time(&now);
-  if (now < 1000000) return;  // NTP 未同期
+  if (now < 1000000) return;  // NTP not synced
 
   unsigned long elapsedMs = millis() - lastDetectedMillis;
-  prefs.putULong("elapsed", elapsedMs / 1000);  // 秒単位で保存
+  prefs.putULong("elapsed", elapsedMs / 1000);  // save in seconds
   prefs.putULong("savetime", (unsigned long)now);
 }
 
@@ -966,7 +974,7 @@ void restoreTimerState() {
     return;
   }
 
-  // NTP 同期を最大10秒待つ
+  // Wait up to 10 seconds for NTP sync
   Serial.println("[Recovery] Waiting for NTP sync...");
   time_t now;
   for (int i = 0; i < 20; i++) {
@@ -982,12 +990,12 @@ void restoreTimerState() {
   long sinceReboot = (long)(now - (time_t)savedTime);
   Serial.printf("[Recovery] savedElapsed=%lu sec, sinceReboot=%ld sec\n", savedElapsed, sinceReboot);
 
-  // 保存から1分以内なら復元
+  // Restore if saved within 1 minute
   if (sinceReboot >= 0 && sinceReboot <= 60) {
     unsigned long totalElapsed = (savedElapsed + (unsigned long)sinceReboot) * 1000;
     lastDetectedMillis = millis() - totalElapsed;
     everDetected = true;
-    lastNoMotionMillis = millis();  // 復元時は未検知として3分カウント開始
+    lastNoMotionMillis = millis();  // start 3-min no-motion countdown on restore
     bootRecoveryDone = true;
     Serial.printf("[Recovery] Restored timer: %lu sec total\n", totalElapsed / 1000);
   } else {
@@ -996,8 +1004,8 @@ void restoreTimerState() {
 }
 
 // ═══════════════════════════════════════════════════
-// ログ記録 (NVS リングバッファ, 最大20件)
-// 各エントリ: "MM/DD HH:MM HH:MM:SS" (日付 時刻 経過時間)
+// Log recording (NVS ring buffer, max 20 entries)
+// Each entry: "MM/DD HH:MM HH:MM:SS" (date time elapsed)
 // ═══════════════════════════════════════════════════
 void saveLogEntry(unsigned long elapsedMs) {
   struct tm ti;
@@ -1010,7 +1018,7 @@ void saveLogEntry(unsigned long elapsedMs) {
     ti.tm_hour, ti.tm_min,
     elapsed.c_str());
 
-  // リングバッファのインデックス
+  // Ring buffer index
   int idx = prefs.getInt("logIdx", 0);
   char key[8];
   sprintf(key, "log%02d", idx % LOG_MAX);
@@ -1019,13 +1027,13 @@ void saveLogEntry(unsigned long elapsedMs) {
 
   Serial.printf("[Log] Saved #%d: %s\n", idx, entry);
 
-  // 日別統計も更新
+  // Update daily stats
   saveDailyStats(elapsedMs);
 }
 
 // ═══════════════════════════════════════════════════
-// ログ表示画面 (BtnB で呼び出し)
-// A: 前ページ, B: 戻る, C: 次ページ
+// Log display screen (called by BtnB)
+// A: prev page, B: back, C: next page
 // ═══════════════════════════════════════════════════
 void showLogScreen() {
   int totalIdx = prefs.getInt("logIdx", 0);
@@ -1052,22 +1060,22 @@ void showLogScreen() {
     }
   }
 
-  // 新しい順にエントリを読み出し (static でスタック節約)
+  // Read entries in newest-first order (static to save stack)
   static String entries[LOG_MAX];
   static unsigned long durations[LOG_MAX];
   for (int i = 0; i < count; i++) {
-    // 新しい順: totalIdx-1, totalIdx-2, ...
+    // Newest first: totalIdx-1, totalIdx-2, ...
     int realIdx = (totalIdx - 1 - i) % LOG_MAX;
     if (realIdx < 0) realIdx += LOG_MAX;
     char key[8];
     sprintf(key, "log%02d", realIdx);
     entries[i] = prefs.getString(key, "");
 
-    // 経過時間部分をパースして秒に変換 (末尾の HH:MM:SS)
+    // Parse elapsed time to seconds (trailing HH:MM:SS)
     durations[i] = 0;
     if (entries[i].length() >= 20) {
       int h, m, s;
-      const char* p = entries[i].c_str() + 12;  // "MM/DD HH:MM " の後
+      const char* p = entries[i].c_str() + 12;  // after "MM/DD HH:MM "
       if (sscanf(p, "%d:%d:%d", &h, &m, &s) == 3) {
         durations[i] = h * 3600 + m * 60 + s;
       }
@@ -1106,7 +1114,7 @@ void showLogScreen() {
         M5.Display.print(entries[i]);
       }
 
-      // ガイド
+      // Guide
       setFontSmall();
       M5.Display.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
       M5.Display.setCursor(10, 225);
@@ -1119,15 +1127,15 @@ void showLogScreen() {
     if (M5.BtnC.wasPressed() && page < maxPage) { page++; needRedraw = true; }
     if (M5.BtnB.wasPressed()) {
       showDailyStatsScreen();
-      return;  // 日別サマリーから戻ったらメインへ
+      return;  // return to main after daily summary
     }
     delay(50);
   }
 }
 
 // ═══════════════════════════════════════════════════
-// 日別統計 (NVS, 最大10日分リングバッファ)
-// キー: ds00~ds09 = "MM/DD,合計秒,回数,最大秒,最小秒"
+// Daily statistics (NVS, ring buffer for up to 10 days)
+// Key: ds00~ds09 = "MM/DD,totalSec,count,maxSec,minSec"
 // ═══════════════════════════════════════════════════
 void saveDailyStats(unsigned long elapsedMs) {
   struct tm ti;
@@ -1164,7 +1172,7 @@ void saveDailyStats(unsigned long elapsedMs) {
     }
   }
 
-  // 新しい日
+  // New day
   char key[8];
   sprintf(key, "ds%02d", dsIdx % DAILY_MAX);
   char buf[48];
@@ -1175,8 +1183,8 @@ void saveDailyStats(unsigned long elapsedMs) {
 }
 
 // ═══════════════════════════════════════════════════
-// 日別統計表示画面
-// B: 戻る
+// Daily statistics display screen
+// B: back
 // ═══════════════════════════════════════════════════
 void showDailyStatsScreen() {
   int dsIdx = prefs.getInt("dsIdx", 0);
@@ -1203,7 +1211,7 @@ void showDailyStatsScreen() {
     }
   }
 
-  // 新しい順に読み出し
+  // Read in newest-first order
   for (int i = 0; i < dsCount; i++) {
     int ri = (dsIdx - 1 - i);
     if (ri < 0) ri += DAILY_MAX;
@@ -1223,13 +1231,13 @@ void showDailyStatsScreen() {
     int y = 24 + i * 40;
     if (y > 190) break;
 
-    // 1行目: 日付 回数 平均
+    // Line 1: date, count, average
     setFontMed();
     M5.Display.setTextColor(TFT_CYAN, TFT_BLACK);
     M5.Display.setCursor(10, y);
     M5.Display.printf("%s  %d回  平均%s", date, cnt, formatElapsed(avgSec * 1000).c_str());
 
-    // 2行目: 最大 最小
+    // Line 2: max, min
     M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
     M5.Display.setCursor(30, y + 18);
     M5.Display.printf("最大%s  最小%s",
@@ -1237,7 +1245,7 @@ void showDailyStatsScreen() {
       formatElapsed(minSec * 1000).c_str());
   }
 
-  // ガイド
+  // Guide
   setFontSmall();
   M5.Display.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
   M5.Display.setCursor(10, 225);
@@ -1251,7 +1259,7 @@ void showDailyStatsScreen() {
 }
 
 // ═══════════════════════════════════════════════════
-// 今日の最大値を日別統計から取得 (秒)
+// Get today's max from daily stats (seconds)
 // ═══════════════════════════════════════════════════
 unsigned long getTodayMaxFromStats() {
   struct tm ti;
@@ -1281,8 +1289,8 @@ unsigned long getTodayMaxFromStats() {
 }
 
 // ═══════════════════════════════════════════════════
-// 設定メニュー
-// A: WiFi設定変更, B: 戻る, C: Hue Bridge設定変更
+// Settings menu
+// A: change WiFi settings, B: back, C: change Hue Bridge settings
 // ═══════════════════════════════════════════════════
 void showSettingsMenu() {
   int page = 0;
@@ -1338,7 +1346,7 @@ void showSettingsMenu() {
 
     if (page == 0) {
       if (M5.BtnA.wasPressed()) {
-        // WiFi 再設定: 確認画面
+        // WiFi reconfigure: confirmation screen
         M5.Display.fillScreen(TFT_BLACK);
         setFontMed();
         M5.Display.setTextColor(TFT_YELLOW, TFT_BLACK);
@@ -1361,14 +1369,14 @@ void showSettingsMenu() {
         return;
       }
       if (M5.BtnC.wasPressed()) {
-        // 短押し: Hue再設定、ただし長押し判定のため少し待つ
+        // Short press: Hue reconfigure, wait briefly for long-press detection
         unsigned long pressStart = millis();
         while (M5.BtnC.isPressed()) { M5.update(); delay(10); }
         if (millis() - pressStart > 500) {
-          // 長押し → 次ページ
+          // Long press -> next page
           page = 1; needRedraw = true; continue;
         }
-        // 短押し → Hue Bridge 再設定確認
+        // Short press -> Hue Bridge reconfigure confirmation
         M5.Display.fillScreen(TFT_BLACK);
         setFontMed();
         M5.Display.setTextColor(TFT_YELLOW, TFT_BLACK);
@@ -1404,10 +1412,10 @@ void showSettingsMenu() {
         unsigned long pressStart = millis();
         while (M5.BtnA.isPressed()) { M5.update(); delay(10); }
         if (millis() - pressStart > 500) {
-          // 長押し → 前ページ
+          // Long press -> previous page
           page = 0; needRedraw = true; continue;
         }
-        // 短押し → アラーム試聴
+        // Short press -> alarm preview
         M5.Display.fillRect(0, 110, 320, 20, TFT_BLACK);
         setFontMed();
         M5.Display.setTextColor(TFT_YELLOW, TFT_BLACK);
@@ -1429,8 +1437,8 @@ void showSettingsMenu() {
 }
 
 // ═══════════════════════════════════════════════════
-// 今日のログから最大エントリの時刻を取得
-// ログ形式: "MM/DD HH:MM HH:MM:SS"
+// Get time of max entry from today's logs
+// Log format: "MM/DD HH:MM HH:MM:SS"
 // ═══════════════════════════════════════════════════
 String getTodayMaxTimeFromLog() {
   struct tm ti;
@@ -1452,10 +1460,10 @@ String getTodayMaxTimeFromLog() {
     sprintf(key, "log%02d", realIdx);
     String entry = prefs.getString(key, "");
 
-    // 今日のエントリか確認
+    // Check if entry is from today
     if (entry.length() >= 20 && entry.startsWith(today)) {
-      // 時刻部分: entry[6..10] = "HH:MM"
-      // 経過時間: entry[12..] = "HH:MM:SS"
+      // Time part: entry[6..10] = "HH:MM"
+      // Elapsed part: entry[12..] = "HH:MM:SS"
       int h, m, s;
       if (sscanf(entry.c_str() + 12, "%d:%d:%d", &h, &m, &s) == 3) {
         unsigned long dur = h * 3600 + m * 60 + s;
@@ -1471,8 +1479,8 @@ String getTodayMaxTimeFromLog() {
 }
 
 // ═══════════════════════════════════════════════════
-// Web サーバーからリモートアラートをポーリング
-// GET WEB_SERVER_URL → {"alert":true} なら再生
+// Poll remote alert from web server
+// GET WEB_SERVER_URL -> {"alert":true} triggers playback
 // ═══════════════════════════════════════════════════
 void checkRemoteAlert() {
   if (strlen(WEB_SERVER_URL) == 0) return;
@@ -1484,7 +1492,7 @@ void checkRemoteAlert() {
   int code = http.GET();
   if (code == 200) {
     String payload = http.getString();
-    // urgentMinute を更新
+    // Update urgentMinute
     int umIdx = payload.indexOf("\"urgentMinute\":");
     if (umIdx >= 0) {
       urgentMinute = payload.substring(umIdx + 15).toInt();

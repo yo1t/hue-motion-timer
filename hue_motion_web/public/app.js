@@ -1,4 +1,47 @@
-// ─── 画面切り替え ───
+// ─── Internationalization ───
+const I18N = {
+  ja: {
+    waiting: '待機中...', detected: '検知!', noMotion: '未検知',
+    status: '状態', sensor: 'センサー', settings: '設定',
+    logs: 'ログ', daily: '日別', alert: '🔔 アラート', urgent: '🚨 緊急',
+    back: '戻る', discover: '自動探索', scanRange: 'レンジ探索',
+    manualSet: '手動設定', pairing: 'ペアリング', getSensors: '一覧取得',
+    change: '変更', notSet: '未設定', configured: '設定済み ✓',
+    bridgeIP: 'Bridge IP', apiKey: 'API キー', sensorLabel: 'センサー',
+    urgentAlert: '緊急アラート', min: '分',
+    hueHint: 'Hue Bridge のボタンを押してからクリック',
+    scanning: 'スキャン中...', searching: '探索中...',
+    settingUp: '設定中...', connecting: '接続中...',
+    success: '成功!', failed: '失敗', done: '設定完了',
+    autoFail: '自動探索失敗 (手動で入力してください)',
+    notFound: '見つかりません', noSensors: 'センサーが見つかりません',
+    times: '回', avg: '平均', max: '最大', min2: '最小',
+    logTitle: 'ログ', dailyTitle: '日別サマリー',
+  },
+  en: {
+    waiting: 'Waiting...', detected: 'Detected!', noMotion: 'No motion',
+    status: 'Status', sensor: 'Sensor', settings: 'Settings',
+    logs: 'Logs', daily: 'Daily', alert: '🔔 Alert', urgent: '🚨 Urgent',
+    back: 'Back', discover: 'Auto Discover', scanRange: 'Range Scan',
+    manualSet: 'Manual Set', pairing: 'Pair', getSensors: 'Get List',
+    change: 'Change', notSet: 'Not set', configured: 'Configured ✓',
+    bridgeIP: 'Bridge IP', apiKey: 'API Key', sensorLabel: 'Sensor',
+    urgentAlert: 'Urgent Alert', min: 'min',
+    hueHint: 'Press the Hue Bridge button first',
+    scanning: 'Scanning...', searching: 'Searching...',
+    settingUp: 'Setting up...', connecting: 'Connecting...',
+    success: 'Success!', failed: 'Failed', done: 'Done',
+    autoFail: 'Auto-discovery failed (enter manually)',
+    notFound: 'Not found', noSensors: 'No sensors found',
+    times: 'x', avg: 'Avg', max: 'Max', min2: 'Min',
+    logTitle: 'Logs', dailyTitle: 'Daily Summary',
+  }
+};
+
+let currentLang = 'ja';
+function t(key) { return (I18N[currentLang] || I18N.ja)[key] || key; }
+
+// ─── Screen switching ───
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
@@ -10,14 +53,14 @@ function showDaily() { fetchDaily(); showScreen('daily-screen'); }
 
 let manualSetup = false;
 
-// ─── HTML エスケープ ───
+// ─── HTML escape ───
 function esc(str) {
   const d = document.createElement('div');
   d.textContent = str;
   return d.innerHTML;
 }
 
-// ─── 時刻フォーマット ───
+// ─── Time formatting ───
 function formatElapsed(ms) {
   const totalSec = Math.floor(ms / 1000);
   const h = Math.floor(totalSec / 3600);
@@ -32,7 +75,7 @@ function formatHM(sec) {
   return `${h}:${String(m).padStart(2,'0')}`;
 }
 
-// ─── メイン画面更新 ───
+// ─── Main screen update ───
 let lastPresenceTime = 0;
 
 async function updateState() {
@@ -40,15 +83,21 @@ async function updateState() {
     const res = await fetch('/hue/api/state');
     const data = await res.json();
 
-    // 接続状態
+    // Connection status
     const dot = document.getElementById('connection');
     dot.className = `dot ${data.connected ? 'connected' : 'disconnected'}`;
 
-    // M5Stack ステータス
+    // M5Stack status
     const m5 = document.getElementById('m5-status');
     m5.className = `m5-badge ${data.m5Online ? 'online' : 'offline'}`;
 
-    // 未設定で初回表示のみセットアップ画面に遷移
+    // Language setting
+    if (data.lang && data.lang !== currentLang) {
+      currentLang = data.lang;
+      applyLang();
+    }
+
+    // Redirect to setup screen only if unconfigured and main is visible
     const mainVisible = !document.getElementById('main-screen').classList.contains('hidden');
     if (!data.configured && mainVisible) {
       showSetup();
@@ -56,28 +105,28 @@ async function updateState() {
     }
     if (!mainVisible) return;
 
-    // センサー名
-    document.getElementById('sensor-name').textContent = `センサー: ${data.sensorName}`;
+    // Sensor name
+    document.getElementById('sensor-name').textContent = `${t('sensor')}: ${data.sensorName}`;
 
-    // ステータス
+    // Status
     const statusEl = document.getElementById('status');
     if (!data.everDetected) {
-      statusEl.textContent = '待機中...';
+      statusEl.textContent = t('waiting');
       statusEl.className = 'status waiting';
     } else if (data.presence || (Date.now() - lastPresenceTime < 5000)) {
-      statusEl.textContent = '検知!';
+      statusEl.textContent = t('detected');
       statusEl.className = 'status detected';
       if (data.presence) lastPresenceTime = Date.now();
     } else {
-      statusEl.textContent = '未検知';
+      statusEl.textContent = t('noMotion');
       statusEl.className = 'status no-motion';
     }
 
-    // タイマー
+    // Timer
     const timerEl = document.getElementById('timer');
     timerEl.textContent = data.everDetected ? formatElapsed(data.elapsed) : '--:--:--';
 
-    // 日次最大
+    // Daily max
     const maxEl = document.getElementById('daily-max');
     if (data.dailyMax > 0) {
       const today = new Date();
@@ -88,14 +137,14 @@ async function updateState() {
       maxEl.textContent = '';
     }
 
-    // アラート
+    // Alert
     if (data.alertTriggered) {
       timerEl.classList.add('alert-flash');
       playAlert();
       setTimeout(() => timerEl.classList.remove('alert-flash'), 2000);
     }
 
-    // 時計
+    // Clock
     const now = new Date();
     document.getElementById('clock').textContent =
       `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
@@ -105,7 +154,7 @@ async function updateState() {
   }
 }
 
-// ─── アラート音 (Web Audio API) ───
+// ─── Alert sound (Web Audio API) ───
 function playAlert() {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const notes = [392, 392, 392, 494, 440, 392, 440, 494, 392, 392, 494, 587, 659];
@@ -126,7 +175,7 @@ function playAlert() {
   }
 }
 
-// ─── ログ表示 ───
+// ─── Log display ───
 async function fetchLogs() {
   const res = await fetch('/hue/api/logs');
   const logs = await res.json();
@@ -141,18 +190,18 @@ async function fetchLogs() {
   }).join('');
 }
 
-// ─── 日別表示 ───
+// ─── Daily display ───
 async function fetchDaily() {
   const res = await fetch('/hue/api/daily');
   const daily = await res.json();
   const list = document.getElementById('daily-list');
-  const entries = Object.entries(daily).sort((a, b) => a[0].localeCompare(b[0])); // 古い順
+  const entries = Object.entries(daily).sort((a, b) => a[0].localeCompare(b[0])); // oldest first
   list.innerHTML = entries.slice().reverse().map(([date, d]) => {
     const avg = d.count > 0 ? Math.floor(d.total / d.count) : 0;
     const minVal = d.min === Infinity ? 0 : d.min;
     return `<div class="daily-entry">
       <div class="date">${esc(date)}</div>
-      <div class="stats">${esc(String(d.count))}回 平均${esc(formatElapsed(avg*1000))} 最大${esc(formatElapsed(d.max*1000))} 最小${esc(formatElapsed(minVal*1000))}</div>
+      <div class="stats">${esc(String(d.count))}${t('times')} ${t('avg')}${esc(formatElapsed(avg*1000))} ${t('max')}${esc(formatElapsed(d.max*1000))} ${t('min2')}${esc(formatElapsed(minVal*1000))}</div>
     </div>`;
   }).join('');
 
@@ -180,13 +229,41 @@ function renderMainChart(entries) {
 
 function buildChart(ctx, entries) {
 
-  const labels = entries.map(([date]) => date);
-  const avgData = entries.map(([, d]) => d.count > 0 ? secToMin(d.total / d.count) : 0);
-  const maxData = entries.map(([, d]) => secToMin(d.max || 0));
-  const totalData = entries.map(([, d]) => {
-    const avg = d.count > 0 ? d.total / d.count : 0;
-    return secToMin(d.count * avg);
-  });
+  // Fill missing dates with 0 for continuous date axis
+  const dataMap = {};
+  for (const [date, d] of entries) {
+    dataMap[date] = d;
+  }
+
+  const labels = [];
+  const avgData = [];
+  const maxData = [];
+  const totalData = [];
+
+  if (entries.length > 0) {
+    // From first date to today
+    const firstParts = entries[0][0].split('/');
+    const now = new Date();
+    const year = now.getFullYear();
+    const start = new Date(year, parseInt(firstParts[0]) - 1, parseInt(firstParts[1]));
+    const end = new Date(year, now.getMonth(), now.getDate());
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const key = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+      labels.push(key);
+      const stat = dataMap[key];
+      if (stat && stat.count > 0) {
+        const avg = stat.total / stat.count;
+        avgData.push(secToMin(avg));
+        maxData.push(secToMin(stat.max || 0));
+        totalData.push(secToMin(stat.count * avg));
+      } else {
+        avgData.push(0);
+        maxData.push(0);
+        totalData.push(0);
+      }
+    }
+  }
 
   return new Chart(ctx, {
     data: {
@@ -269,16 +346,17 @@ function buildChart(ctx, entries) {
   });
 }
 
-// ─── セットアップ ───
+// ─── Setup ───
 async function loadConfig() {
   try {
     const res = await fetch('/hue/api/config');
     const cfg = await res.json();
-    document.getElementById('cfg-bridge').textContent = cfg.bridgeIP || '未設定';
-    document.getElementById('cfg-apikey').textContent = cfg.hasApiKey ? '設定済み ✓' : '未設定';
-    document.getElementById('cfg-sensor').textContent = cfg.sensorName || '未設定';
-    document.getElementById('cfg-urgent').textContent = `${cfg.urgentMinute || 20}分`;
+    document.getElementById('cfg-bridge').textContent = cfg.bridgeIP || t('notSet');
+    document.getElementById('cfg-apikey').textContent = cfg.hasApiKey ? t('configured') : t('notSet');
+    document.getElementById('cfg-sensor').textContent = cfg.sensorName || t('notSet');
+    document.getElementById('cfg-urgent').textContent = `${cfg.urgentMinute || 20}${t('min')}`;
     document.getElementById('sensor-select-row').style.display = 'none';
+    updateLangButtons();
   } catch (e) {
     console.error('Config load error:', e);
   }
@@ -365,6 +443,25 @@ async function loadSensors() {
   document.getElementById('sensor-select-row').style.display = 'flex';
 }
 
+async function setLang(lang) {
+  const res = await fetch('/hue/api/set-lang', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lang })
+  });
+  const data = await res.json();
+  if (data.success) {
+    currentLang = lang;
+    applyLang();
+    updateLangButtons();
+  }
+}
+
+function updateLangButtons() {
+  document.getElementById('btn-lang-ja').classList.toggle('lang-active', currentLang === 'ja');
+  document.getElementById('btn-lang-en').classList.toggle('lang-active', currentLang === 'en');
+}
+
 async function setUrgentMinute() {
   const val = parseInt(document.getElementById('urgent-input').value);
   if (!val || val < 1 || val > 120) return;
@@ -400,13 +497,33 @@ async function selectSensor() {
   }
 }
 
-// ─── 初期化 ───
+// ─── Initialization ───
 setInterval(updateState, 1000);
 updateState();
 loadMainChart();
+applyLang();
 
-// 5分ごとにメイン画面のグラフを更新
+// Refresh main screen chart every 5 minutes
 setInterval(loadMainChart, 300000);
+
+function applyLang() {
+  // Main screen
+  document.querySelector('#main-screen .label').textContent = t('status');
+  document.querySelectorAll('.bottom-nav button')[0].textContent = t('settings');
+  document.querySelectorAll('.bottom-nav button')[1].textContent = t('logs');
+  document.querySelectorAll('.bottom-nav button')[2].textContent = t('daily');
+  document.querySelectorAll('.bottom-nav button')[3].textContent = t('alert');
+  document.querySelectorAll('.bottom-nav button')[4].textContent = t('urgent');
+  // Log screen
+  document.querySelector('#log-screen h2').textContent = t('logTitle');
+  document.querySelector('#log-screen .back-btn').textContent = t('back');
+  // Daily screen
+  document.querySelector('#daily-screen h2').textContent = t('dailyTitle');
+  document.querySelector('#daily-screen .back-btn').textContent = t('back');
+  // Settings screen
+  document.querySelector('#setup-screen h1').textContent = t('settings');
+  document.querySelector('#setup-screen .back-btn').textContent = t('back');
+}
 
 async function loadMainChart() {
   try {
@@ -417,7 +534,7 @@ async function loadMainChart() {
   } catch (e) {}
 }
 
-// ─── リモートアラート ───
+// ─── Remote alert ───
 async function sendAlert() {
   try {
     await fetch('/hue/api/alert', { method: 'POST' });
@@ -440,7 +557,7 @@ function playEvaAlert() {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   let time = ctx.currentTime;
   for (let i = 0; i < 4; i++) {
-    // 高音 B5
+    // High note B5
     const osc1 = ctx.createOscillator();
     const g1 = ctx.createGain();
     osc1.connect(g1); g1.connect(ctx.destination);
@@ -449,7 +566,7 @@ function playEvaAlert() {
     g1.gain.setValueAtTime(0.4, time);
     osc1.start(time); osc1.stop(time + 0.3);
     time += 0.35;
-    // 低音 F#5
+    // Low note F#5
     const osc2 = ctx.createOscillator();
     const g2 = ctx.createGain();
     osc2.connect(g2); g2.connect(ctx.destination);
@@ -459,7 +576,7 @@ function playEvaAlert() {
     osc2.start(time); osc2.stop(time + 0.3);
     time += 0.35;
   }
-  // 最後の長い高音
+  // Final long high note
   const osc3 = ctx.createOscillator();
   const g3 = ctx.createGain();
   osc3.connect(g3); g3.connect(ctx.destination);

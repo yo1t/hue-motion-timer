@@ -260,3 +260,19 @@ header {
   border-radius: 8px;
   max-height: 300px;
 }
+
+.lang-btn {
+  padding: 8px 20px;
+  background: #2a2a4a;
+  border: 1px solid #444;
+  color: #aaa;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.lang-btn.lang-active {
+  background: #00d4ff;
+  color: #000;
+  font-weight: bold;
+  border-color: #00d4ff;
+}
