@@ -16,7 +16,7 @@ A motion sensor elapsed-time monitor using the Philips Hue motion sensor. Availa
 ## Overview
 
 ### Web Dashboard
-![Web Dashboard](docs/web-screenshot.png)
+<img src="docs/web-screenshot.png" alt="Web Dashboard" width="320">
 
 Monitors a Hue motion sensor (ZLLPresence) and displays a real-time timer since the last detection. Designed for tracking occupancy duration with audible alerts and historical logging.
 
