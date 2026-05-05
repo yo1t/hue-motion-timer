@@ -322,7 +322,7 @@ function buildChart(ctx, entries) {
       },
       scales: {
         x: {
-          ticks: { color: '#aaa' },
+          ticks: { color: '#aaa', maxTicksLimit: 10, maxRotation: 45 },
           grid: { color: 'rgba(255,255,255,0.1)' }
         },
         y: {
