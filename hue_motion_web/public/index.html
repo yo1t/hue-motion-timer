@@ -111,6 +111,11 @@
       <div class="chart-container">
         <canvas id="main-chart"></canvas>
       </div>
+      <div class="chart-nav">
+        <button onclick="chartPagePrev()">◀ 前月</button>
+        <span id="chart-page-label"></span>
+        <button onclick="chartPageNext()">次月 ▶</button>
+      </div>
 
       <nav class="bottom-nav">
         <button onclick="showSetup()">設定</button>
@@ -141,6 +146,11 @@
       <div id="daily-list" class="daily-list"></div>
       <div class="chart-container">
         <canvas id="daily-chart"></canvas>
+      </div>
+      <div class="chart-nav">
+        <button onclick="dailyChartPrev()">◀ 前月</button>
+        <span id="daily-chart-page-label"></span>
+        <button onclick="dailyChartNext()">次月 ▶</button>
       </div>
       <button class="back-btn" onclick="showMain()">戻る</button>
     </div>

@@ -339,19 +339,58 @@ async function fetchDaily() {
     </div>`;
   }).join('');
 
-  // チャート描画
-  renderDailyChart(entries);
+  // Store for chart pagination
+  allDailyChartEntries = entries;
+  dailyChartPage = 0;
+  renderDailyChartPage();
 }
 
 let dailyChart = null;
 let mainChart = null;
+let allDailyChartEntries = [];
+let dailyChartPage = 0;
 
 function secToMin(sec) { return Math.round(sec / 60 * 10) / 10; }
 
-function renderDailyChart(entries) {
+function renderDailyChartPage() {
+  const now = new Date();
+  const targetMonth = new Date(now.getFullYear(), now.getMonth() - dailyChartPage, 1);
+  const year = targetMonth.getFullYear();
+  const month = targetMonth.getMonth();
+  const isCurrentMonth = (dailyChartPage === 0);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const lastDay = isCurrentMonth ? now.getDate() : daysInMonth;
+
+  const monthEntries = [];
+  for (let d = 1; d <= lastDay; d++) {
+    const key = `${String(month + 1).padStart(2, '0')}/${String(d).padStart(2, '0')}`;
+    const found = allDailyChartEntries.find(([k]) => k === key);
+    monthEntries.push(found || [key, { total: 0, count: 0, max: 0, min: 0 }]);
+  }
+
   const ctx = document.getElementById('daily-chart');
   if (dailyChart) dailyChart.destroy();
-  dailyChart = buildChart(ctx, entries);
+  dailyChart = buildChart(ctx, monthEntries);
+
+  const label = document.getElementById('daily-chart-page-label');
+  if (label) label.textContent = `${year}/${String(month + 1).padStart(2, '0')}`;
+
+  const nextBtn = document.querySelector('#daily-screen .chart-nav button:last-child');
+  if (nextBtn) { nextBtn.disabled = isCurrentMonth; nextBtn.style.opacity = isCurrentMonth ? '0.4' : '1'; }
+
+  // Disable "prev" button if no data in previous month
+  const prevMonth = new Date(year, month - 1, 1);
+  const prevPrefix = `${String(prevMonth.getMonth() + 1).padStart(2, '0')}/`;
+  const hasPrevData = allDailyChartEntries.some(([k]) => k.startsWith(prevPrefix));
+  const prevBtn = document.querySelector('#daily-screen .chart-nav button:first-child');
+  if (prevBtn) { prevBtn.disabled = !hasPrevData; prevBtn.style.opacity = hasPrevData ? '1' : '0.4'; }
+}
+
+function dailyChartPrev() { dailyChartPage++; renderDailyChartPage(); }
+function dailyChartNext() { if (dailyChartPage > 0) { dailyChartPage--; renderDailyChartPage(); } }
+
+function renderDailyChart(entries) {
+  // Now handled by renderDailyChartPage
 }
 
 function renderMainChart(entries) {
@@ -363,41 +402,15 @@ function renderMainChart(entries) {
 
 function buildChart(ctx, entries) {
 
-  // Fill missing dates with 0 for continuous date axis
-  const dataMap = {};
-  for (const [date, d] of entries) {
-    dataMap[date] = d;
-  }
-
-  const labels = [];
-  const avgData = [];
-  const maxData = [];
-  const totalData = [];
-
-  if (entries.length > 0) {
-    // From first date to today
-    const firstParts = entries[0][0].split('/');
-    const now = new Date();
-    const year = now.getFullYear();
-    const start = new Date(year, parseInt(firstParts[0]) - 1, parseInt(firstParts[1]));
-    const end = new Date(year, now.getMonth(), now.getDate());
-
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const key = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-      labels.push(key);
-      const stat = dataMap[key];
-      if (stat && stat.count > 0) {
-        const avg = stat.total / stat.count;
-        avgData.push(secToMin(avg));
-        maxData.push(secToMin(stat.max || 0));
-        totalData.push(secToMin(stat.count * avg));
-      } else {
-        avgData.push(0);
-        maxData.push(0);
-        totalData.push(0);
-      }
-    }
-  }
+  // Use entries as-is (already filled by caller)
+  const labels = entries.map(([date]) => date);
+  const avgData = entries.map(([, d]) => d && d.count > 0 ? secToMin(d.total / d.count) : 0);
+  const maxData = entries.map(([, d]) => secToMin(d?.max || 0));
+  const totalData = entries.map(([, d]) => {
+    if (!d || d.count === 0) return 0;
+    const avg = d.total / d.count;
+    return secToMin(d.count * avg);
+  });
 
   return new Chart(ctx, {
     data: {
@@ -682,13 +695,72 @@ function applyLang() {
   document.querySelector('#setup-screen .back-btn').textContent = t('back');
 }
 
+let allDailyEntries = [];
+let chartPage = 0;  // 0 = current month, 1 = last month, etc.
+
 async function loadMainChart() {
   try {
     const res = await fetch(`/hue/api/daily?sensor=${encodeURIComponent(currentSensor)}`);
     const daily = await res.json();
-    const entries = Object.entries(daily).sort((a, b) => a[0].localeCompare(b[0]));
-    renderMainChart(entries);
+    allDailyEntries = Object.entries(daily).sort((a, b) => a[0].localeCompare(b[0]));
+    chartPage = 0;
+    renderMainChartPage();
   } catch (e) {}
+}
+
+function renderMainChartPage() {
+  // Calculate month range based on chartPage (0 = this month)
+  const now = new Date();
+  const targetMonth = new Date(now.getFullYear(), now.getMonth() - chartPage, 1);
+  const year = targetMonth.getFullYear();
+  const month = targetMonth.getMonth(); // 0-indexed
+  const isCurrentMonth = (chartPage === 0);
+
+  // Filter entries for this month
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const lastDay = isCurrentMonth ? now.getDate() : daysInMonth;
+
+  // Build month entries (1st to lastDay)
+  const monthEntries = [];
+  for (let d = 1; d <= lastDay; d++) {
+    const key = `${String(month + 1).padStart(2, '0')}/${String(d).padStart(2, '0')}`;
+    const found = allDailyEntries.find(([k]) => k === key);
+    monthEntries.push(found || [key, { total: 0, count: 0, max: 0, min: 0 }]);
+  }
+
+  renderMainChart(monthEntries);
+
+  // Update label
+  const label = document.getElementById('chart-page-label');
+  if (label) {
+    label.textContent = `${year}/${String(month + 1).padStart(2, '0')}`;
+  }
+
+  // Disable "next" button on current month
+  const nextBtn = document.querySelector('#main-screen .chart-nav button:last-child');
+  if (nextBtn) {
+    nextBtn.disabled = isCurrentMonth;
+    nextBtn.style.opacity = isCurrentMonth ? '0.4' : '1';
+  }
+
+  // Disable "prev" button if no data in previous month
+  const prevMonth = new Date(year, month - 1, 1);
+  const prevPrefix = `${String(prevMonth.getMonth() + 1).padStart(2, '0')}/`;
+  const hasPrevData = allDailyEntries.some(([k]) => k.startsWith(prevPrefix));
+  const prevBtn = document.querySelector('#main-screen .chart-nav button:first-child');
+  if (prevBtn) {
+    prevBtn.disabled = !hasPrevData;
+    prevBtn.style.opacity = hasPrevData ? '1' : '0.4';
+  }
+}
+
+function chartPagePrev() {
+  chartPage++;
+  renderMainChartPage();
+}
+
+function chartPageNext() {
+  if (chartPage > 0) { chartPage--; renderMainChartPage(); }
 }
 
 // ─── Remote alert ───
