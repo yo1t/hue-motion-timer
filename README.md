@@ -51,6 +51,8 @@ Both versions share the same Hue Bridge and can run simultaneously. Each version
 | Feature | M5Stack | Web |
 |---------|---------|-----|
 | Real-time timer display | ✓ | ✓ |
+| Multi-sensor support | — | ✓ (up to 20) |
+| Per-sensor alert config | — | ✓ |
 | Motion detection status | ✓ | ✓ |
 | Auto Bridge discovery (mDNS/Cloud) | ✓ | ✓ (IP range scan) |
 | Auto API key generation | ✓ | ✓ |
@@ -183,12 +185,10 @@ Plays an alert melody at configurable intervals (default: 15, 20, 30, 45, 60 min
    {
      "bridgeIP": "",
      "apiKey": "",
-     "sensorName": "",
      "port": 3000,
      "pollInterval": 2000,
      "resetTimeout": 180000,
-     "alertMinutes": [15, 20, 30, 45, 60],
-     "urgentMinute": 20,
+     "sensors": [],
      "authUser": "admin",
      "authPass": "",
      "allowedNetworks": ["192.168.1.0/24", "10.0.0.0/8", "127.0.0.1/32"],

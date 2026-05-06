@@ -51,6 +51,8 @@ Node.js + Apache リバースプロキシで動作するブラウザベースの
 | 機能 | M5Stack | Web |
 |------|---------|-----|
 | リアルタイムタイマー表示 | ✓ | ✓ |
+| 複数センサー対応 | — | ✓ (最大20) |
+| センサーごとのアラート設定 | — | ✓ |
 | モーション検知ステータス | ✓ | ✓ |
 | Bridge 自動探索 (mDNS/Cloud) | ✓ | ✓ (IP レンジスキャン) |
 | API キー自動取得 | ✓ | ✓ |
@@ -182,12 +184,10 @@ Node.js + Apache リバースプロキシで動作するブラウザベースの
    {
      "bridgeIP": "",
      "apiKey": "",
-     "sensorName": "",
      "port": 3000,
      "pollInterval": 2000,
      "resetTimeout": 180000,
-     "alertMinutes": [15, 20, 30, 45, 60],
-     "urgentMinute": 20,
+     "sensors": [],
      "authUser": "admin",
      "authPass": "",
      "allowedNetworks": ["192.168.1.0/24", "10.0.0.0/8", "127.0.0.1/32"],

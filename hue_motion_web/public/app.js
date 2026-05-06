@@ -39,6 +39,7 @@ const I18N = {
 };
 
 let currentLang = 'ja';
+let currentSensor = '';
 function t(key) { return (I18N[currentLang] || I18N.ja)[key] || key; }
 
 // ─── Screen switching ───
@@ -50,6 +51,11 @@ function showMain() { showScreen('main-screen'); }
 function showSetup() { loadConfig(); showScreen('setup-screen'); }
 function showLogs() { fetchLogs(); showScreen('log-screen'); }
 function showDaily() { fetchDaily(); showScreen('daily-screen'); }
+
+function switchSensor() {
+  currentSensor = document.getElementById('sensor-select-main').value;
+  loadMainChart();
+}
 
 let manualSetup = false;
 
@@ -80,8 +86,17 @@ let lastPresenceTime = 0;
 
 async function updateState() {
   try {
-    const res = await fetch('/hue/api/state');
+    const res = await fetch(`/hue/api/state?sensor=${encodeURIComponent(currentSensor)}`);
     const data = await res.json();
+
+    // Update sensor dropdown
+    if (data.sensors && data.sensors.length > 0) {
+      const sel = document.getElementById('sensor-select-main');
+      if (sel.options.length !== data.sensors.length) {
+        sel.innerHTML = data.sensors.map(s => `<option value="${esc(s)}" ${s === data.sensorName ? 'selected' : ''}>${esc(s)}</option>`).join('');
+      }
+      if (!currentSensor) currentSensor = data.sensorName;
+    }
 
     // Connection status
     const dot = document.getElementById('connection');
@@ -90,6 +105,12 @@ async function updateState() {
     // M5Stack status
     const m5 = document.getElementById('m5-status');
     m5.className = `m5-badge ${data.m5Online ? 'online' : 'offline'}`;
+
+    // Disable alert buttons when M5 is offline
+    const alertBtn = document.querySelector('.alert-btn');
+    const urgentBtn = document.querySelector('.urgent-btn');
+    if (alertBtn) { alertBtn.disabled = !data.m5Online; alertBtn.style.opacity = data.m5Online ? '1' : '0.4'; }
+    if (urgentBtn) { urgentBtn.disabled = !data.m5Online; urgentBtn.style.opacity = data.m5Online ? '1' : '0.4'; }
 
     // Language setting
     if (data.lang && data.lang !== currentLang) {
@@ -104,9 +125,6 @@ async function updateState() {
       return;
     }
     if (!mainVisible) return;
-
-    // Sensor name
-    document.getElementById('sensor-name').textContent = `${t('sensor')}: ${data.sensorName}`;
 
     // Status
     const statusEl = document.getElementById('status');
@@ -177,7 +195,7 @@ function playAlert() {
 
 // ─── Log display ───
 async function fetchLogs() {
-  const res = await fetch('/hue/api/logs');
+  const res = await fetch(`/hue/api/logs?sensor=${encodeURIComponent(currentSensor)}`);
   const logs = await res.json();
   const list = document.getElementById('log-list');
   list.innerHTML = logs.map(log => {
@@ -192,7 +210,7 @@ async function fetchLogs() {
 
 // ─── Daily display ───
 async function fetchDaily() {
-  const res = await fetch('/hue/api/daily');
+  const res = await fetch(`/hue/api/daily?sensor=${encodeURIComponent(currentSensor)}`);
   const daily = await res.json();
   const list = document.getElementById('daily-list');
   const entries = Object.entries(daily).sort((a, b) => a[0].localeCompare(b[0])); // oldest first
@@ -353,13 +371,22 @@ async function loadConfig() {
     const cfg = await res.json();
     document.getElementById('cfg-bridge').textContent = cfg.bridgeIP || t('notSet');
     document.getElementById('cfg-apikey').textContent = cfg.hasApiKey ? t('configured') : t('notSet');
-    document.getElementById('cfg-sensor').textContent = cfg.sensorName || t('notSet');
-    document.getElementById('cfg-urgent').textContent = `${cfg.urgentMinute || 20}${t('min')}`;
-    document.getElementById('sensor-select-row').style.display = 'none';
+
+    // Sensor checklist
+    const checklist = document.getElementById('sensor-checklist');
+    if (cfg.sensors && cfg.sensors.length > 0) {
+      checklist.innerHTML = cfg.sensors.map(s => `<div class="sensor-check"><input type="checkbox" checked data-name="${esc(s.name)}"><label>${esc(s.name)}</label></div>`).join('');
+      document.getElementById('sensor-alerts-section').style.display = 'block';
+      const alertSel = document.getElementById('alert-sensor-select');
+      alertSel.innerHTML = cfg.sensors.map(s => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join('');
+      loadSensorAlerts();
+    } else {
+      checklist.innerHTML = `<p style="color:#888">${t('notSet')}</p>`;
+      document.getElementById('sensor-alerts-section').style.display = 'none';
+    }
+
     updateLangButtons();
-  } catch (e) {
-    console.error('Config load error:', e);
-  }
+  } catch (e) { console.error('Config load error:', e); }
 }
 
 async function discover() {
@@ -431,16 +458,69 @@ async function pair() {
   }
 }
 
-async function loadSensors() {
-  const res = await fetch('/hue/api/sensors');
+async function loadBridgeSensors() {
+  const res = await fetch('/hue/api/bridge-sensors');
   const sensors = await res.json();
-  const select = document.getElementById('sensor-select');
+  const checklist = document.getElementById('sensor-checklist');
   if (sensors.length === 0) {
-    select.innerHTML = '<option>センサーが見つかりません</option>';
-  } else {
-    select.innerHTML = sensors.map(s => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join('');
+    checklist.innerHTML = '<p style="color:#f88">No sensors found on Bridge</p>';
+    return;
   }
-  document.getElementById('sensor-select-row').style.display = 'flex';
+  // Get currently selected sensors
+  const currentNames = [...document.querySelectorAll('#sensor-checklist input:checked')].map(el => el.dataset.name);
+  checklist.innerHTML = sensors.map(s => {
+    const checked = currentNames.includes(s.name) ? 'checked' : '';
+    return `<div class="sensor-check"><input type="checkbox" ${checked} data-name="${esc(s.name)}"><label>${esc(s.name)}</label></div>`;
+  }).join('');
+}
+
+async function saveSensorSelection() {
+  const checked = [...document.querySelectorAll('#sensor-checklist input:checked')];
+  const sensors = checked.map(el => ({
+    name: el.dataset.name,
+    alertMinutes: [15, 20, 30, 45, 60],
+    urgentMinute: 20,
+  }));
+  const status = document.getElementById('sensor-status');
+  status.textContent = 'Saving...';
+  const res = await fetch('/hue/api/set-sensors', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sensors })
+  });
+  const data = await res.json();
+  status.textContent = data.success ? t('done') : `${t('failed')}: ${data.error}`;
+  if (data.success) {
+    loadConfig();
+    if (!currentSensor && data.sensors?.length) currentSensor = data.sensors[0];
+  }
+}
+
+function loadSensorAlerts() {
+  const name = document.getElementById('alert-sensor-select').value;
+  fetch('/hue/api/config').then(r => r.json()).then(cfg => {
+    const s = cfg.sensors.find(x => x.name === name);
+    if (s) {
+      document.getElementById('alert-minutes-input').value = s.alertMinutes.join(',');
+      document.getElementById('urgent-minute-input').value = s.urgentMinute;
+    }
+  });
+}
+
+async function saveSensorAlerts() {
+  const name = document.getElementById('alert-sensor-select').value;
+  const alertStr = document.getElementById('alert-minutes-input').value;
+  const alertMinutes = alertStr.split(',').map(s => parseInt(s.trim())).filter(n => n > 0);
+  const urgentMinute = parseInt(document.getElementById('urgent-minute-input').value) || 0;
+  const status = document.getElementById('alert-status');
+  status.textContent = 'Saving...';
+  const res = await fetch('/hue/api/set-sensor-alerts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, alertMinutes, urgentMinute })
+  });
+  const data = await res.json();
+  status.textContent = data.success ? t('done') : `${t('failed')}: ${data.error}`;
 }
 
 async function setLang(lang) {
@@ -450,51 +530,12 @@ async function setLang(lang) {
     body: JSON.stringify({ lang })
   });
   const data = await res.json();
-  if (data.success) {
-    currentLang = lang;
-    applyLang();
-    updateLangButtons();
-  }
+  if (data.success) { currentLang = lang; applyLang(); updateLangButtons(); }
 }
 
 function updateLangButtons() {
   document.getElementById('btn-lang-ja').classList.toggle('lang-active', currentLang === 'ja');
   document.getElementById('btn-lang-en').classList.toggle('lang-active', currentLang === 'en');
-}
-
-async function setUrgentMinute() {
-  const val = parseInt(document.getElementById('urgent-input').value);
-  if (!val || val < 1 || val > 120) return;
-  const status = document.getElementById('urgent-status');
-  status.textContent = '設定中...';
-  const res = await fetch('/hue/api/set-urgent', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ minute: val })
-  });
-  const data = await res.json();
-  if (data.success) {
-    status.textContent = '設定完了';
-    document.getElementById('cfg-urgent').textContent = `${val}分`;
-    document.getElementById('urgent-input').value = '';
-  } else {
-    status.textContent = `失敗: ${data.error}`;
-  }
-}
-
-async function selectSensor() {
-  const name = document.getElementById('sensor-select').value;
-  if (!name) return;
-  const res = await fetch('/hue/api/select-sensor', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name })
-  });
-  const data = await res.json();
-  if (data.success) {
-    document.getElementById('cfg-sensor').textContent = name;
-    document.getElementById('sensor-select-row').style.display = 'none';
-  }
 }
 
 // ─── Initialization ───
@@ -527,7 +568,7 @@ function applyLang() {
 
 async function loadMainChart() {
   try {
-    const res = await fetch('/hue/api/daily');
+    const res = await fetch(`/hue/api/daily?sensor=${encodeURIComponent(currentSensor)}`);
     const daily = await res.json();
     const entries = Object.entries(daily).sort((a, b) => a[0].localeCompare(b[0]));
     renderMainChart(entries);

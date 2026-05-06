@@ -41,25 +41,31 @@
 
       <div class="step">
         <h2>センサー</h2>
-        <div class="setting-current" id="cfg-sensor">未設定</div>
+        <div id="sensor-checklist"></div>
         <div class="setting-actions">
-          <button onclick="loadSensors()">一覧取得</button>
+          <button onclick="loadBridgeSensors()">Bridge から取得</button>
+          <button onclick="saveSensorSelection()">保存</button>
         </div>
-        <div class="setting-actions" id="sensor-select-row" style="display:none">
-          <select id="sensor-select"></select>
-          <button onclick="selectSensor()">変更</button>
-        </div>
+        <span id="sensor-status" class="setting-status"></span>
       </div>
 
-      <div class="step">
-        <h2>緊急アラート</h2>
-        <div class="setting-current" id="cfg-urgent">20分</div>
+      <div class="step" id="sensor-alerts-section" style="display:none">
+        <h2>アラート設定</h2>
         <div class="setting-actions">
-          <input type="number" id="urgent-input" placeholder="20" min="1" max="120" class="setting-input" style="width:80px">
-          <span>分</span>
-          <button onclick="setUrgentMinute()">変更</button>
+          <select id="alert-sensor-select" onchange="loadSensorAlerts()"></select>
         </div>
-        <span id="urgent-status" class="setting-status"></span>
+        <div class="setting-actions">
+          <label>アラート (分, カンマ区切り):</label>
+          <input type="text" id="alert-minutes-input" class="setting-input" placeholder="15,20,30,45,60">
+        </div>
+        <div class="setting-actions">
+          <label>緊急アラート (分):</label>
+          <input type="number" id="urgent-minute-input" class="setting-input" style="width:80px" min="0" max="120">
+        </div>
+        <div class="setting-actions">
+          <button onclick="saveSensorAlerts()">保存</button>
+        </div>
+        <span id="alert-status" class="setting-status"></span>
       </div>
 
       <div class="step">
@@ -85,7 +91,7 @@
       </header>
 
       <div class="sensor-info">
-        <span id="sensor-name"></span>
+        <select id="sensor-select-main" onchange="switchSensor()"></select>
       </div>
 
       <div class="status-section">
