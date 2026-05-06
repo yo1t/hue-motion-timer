@@ -25,6 +25,8 @@ const I18N = {
     pairing: 'ペアリング', getFromBridge: 'Bridge から取得',
     hueHint: 'Hue Bridge のボタンを押してからクリック',
     langLabel: 'Language',
+    chartMax: '最大 (分)', chartAvg: '平均 (分)', chartTotal: '合計 (分)', chartMin: '分',
+    axisLeft: '平均/最大 (分)', axisRight: '合計 (分)',
   },
   en: {
     waiting: 'Waiting...', detected: 'Detected!', noMotion: 'No motion',
@@ -51,6 +53,8 @@ const I18N = {
     pairing: 'Pair', getFromBridge: 'Get from Bridge',
     hueHint: 'Press the Hue Bridge button first',
     langLabel: 'Language',
+    chartMax: 'Max (min)', chartAvg: 'Avg (min)', chartTotal: 'Total (min)', chartMin: 'min',
+    axisLeft: 'Avg/Max (min)', axisRight: 'Total (min)',
   }
 };
 
@@ -307,7 +311,7 @@ function renderHourlyChart(logs, dateKey) {
       datasets: [
         {
           type: 'bar',
-          label: t('avg') + ' (min)',
+          label: t('chartAvg'),
           data: avgData,
           backgroundColor: 'rgba(0, 212, 255, 0.6)',
           borderColor: 'rgba(0, 212, 255, 1)',
@@ -316,7 +320,7 @@ function renderHourlyChart(logs, dateKey) {
         },
         {
           type: 'bar',
-          label: t('max') + ' total (min)',
+          label: t('chartTotal'),
           data: totalData,
           backgroundColor: 'rgba(255, 221, 0, 0.4)',
           borderColor: 'rgba(255, 221, 0, 1)',
@@ -434,7 +438,7 @@ function buildChart(ctx, entries) {
       datasets: [
         {
           type: 'bar',
-          label: '最大 (分)',
+          label: t('chartMax'),
           data: maxData,
           backgroundColor: 'rgba(255, 99, 71, 0.6)',
           borderColor: 'rgba(255, 99, 71, 1)',
@@ -444,7 +448,7 @@ function buildChart(ctx, entries) {
         },
         {
           type: 'line',
-          label: '平均 (分)',
+          label: t('chartAvg'),
           data: avgData,
           borderColor: '#00d4ff',
           backgroundColor: 'rgba(0, 212, 255, 0.1)',
@@ -456,7 +460,7 @@ function buildChart(ctx, entries) {
         },
         {
           type: 'line',
-          label: '合計 (分)',
+          label: t('chartTotal'),
           data: totalData,
           borderColor: '#ffdd00',
           backgroundColor: 'rgba(255, 221, 0, 0.1)',
@@ -479,7 +483,7 @@ function buildChart(ctx, entries) {
         },
         tooltip: {
           callbacks: {
-            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}分`
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}${t('chartMin')}`
           }
         }
       },
@@ -491,7 +495,7 @@ function buildChart(ctx, entries) {
         y: {
           type: 'linear',
           position: 'left',
-          title: { display: true, text: '平均/最大 (分)', color: '#aaa' },
+          title: { display: true, text: t('axisLeft'), color: '#aaa' },
           ticks: { color: '#aaa' },
           grid: { color: 'rgba(255,255,255,0.1)' },
           beginAtZero: true,
@@ -499,7 +503,7 @@ function buildChart(ctx, entries) {
         y1: {
           type: 'linear',
           position: 'right',
-          title: { display: true, text: '合計 (分)', color: '#ffdd00' },
+          title: { display: true, text: t('axisRight'), color: '#ffdd00' },
           ticks: { color: '#ffdd00' },
           grid: { drawOnChartArea: false },
           beginAtZero: true,
