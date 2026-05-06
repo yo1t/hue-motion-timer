@@ -15,6 +15,7 @@ const I18N = {
     success: '成功!', failed: '失敗', done: '設定完了',
     autoFail: '自動探索失敗 (手動で入力してください)',
     notFound: '見つかりません', noSensors: 'センサーが見つかりません',
+    found: '発見', error: 'エラー',
     times: '回', avg: '平均', max: '最大', min2: '最小',
     logTitle: 'ログ', dailyTitle: '日別サマリー',
     prevMonth: '◀ 前月', nextMonth: '次月 ▶',
@@ -43,6 +44,7 @@ const I18N = {
     success: 'Success!', failed: 'Failed', done: 'Done',
     autoFail: 'Auto-discovery failed (enter manually)',
     notFound: 'Not found', noSensors: 'No sensors found',
+    found: 'Found', error: 'Error',
     times: 'x', avg: 'Avg', max: 'Max', min2: 'Min',
     logTitle: 'Logs', dailyTitle: 'Daily Summary',
     prevMonth: '◀ Prev', nextMonth: 'Next ▶',
@@ -540,14 +542,14 @@ async function loadConfig() {
 
 async function discover() {
   const status = document.getElementById('bridge-status');
-  status.textContent = '探索中...';
+  status.textContent = t('searching');
   const res = await fetch('/hue/api/discover', { method: 'POST' });
   const data = await res.json();
   if (data.success) {
-    status.textContent = `発見: ${data.ip}`;
+    status.textContent = `${t('found')}: ${data.ip}`;
     document.getElementById('cfg-bridge').textContent = data.ip;
   } else {
-    status.textContent = '自動探索失敗 (手動で入力してください)';
+    status.textContent = t('autoFail');
   }
 }
 
@@ -555,7 +557,7 @@ async function scanRange() {
   const range = document.getElementById('scan-range').value.trim();
   if (!range) return;
   const status = document.getElementById('bridge-status');
-  status.textContent = `${range}.1-254 をスキャン中...`;
+  status.textContent = `${range}.1-254 ${t('scanning')}`;
   try {
     const res = await fetch('/hue/api/scan', {
       method: 'POST',
@@ -564,13 +566,13 @@ async function scanRange() {
     });
     const data = await res.json();
     if (data.success) {
-      status.textContent = `発見: ${data.ip} (${data.name})`;
+      status.textContent = `${t('found')}: ${data.ip} (${data.name})`;
       document.getElementById('cfg-bridge').textContent = data.ip;
     } else {
-      status.textContent = `見つかりません`;
+      status.textContent = t('notFound');
     }
   } catch (e) {
-    status.textContent = `エラー: ${e.message}`;
+    status.textContent = `${t('error')}: ${e.message}`;
   }
 }
 
@@ -578,7 +580,7 @@ async function setBridgeIP() {
   const ip = document.getElementById('bridge-ip-input').value.trim();
   if (!ip) return;
   const status = document.getElementById('bridge-status');
-  status.textContent = '設定中...';
+  status.textContent = t('settingUp');
   const res = await fetch('/hue/api/set-bridge', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -586,24 +588,24 @@ async function setBridgeIP() {
   });
   const data = await res.json();
   if (data.success) {
-    status.textContent = '設定完了';
+    status.textContent = t('done');
     document.getElementById('cfg-bridge').textContent = data.ip;
     document.getElementById('bridge-ip-input').value = '';
   } else {
-    status.textContent = `失敗: ${data.error}`;
+    status.textContent = `${t('failed')}: ${data.error}`;
   }
 }
 
 async function pair() {
   const status = document.getElementById('pair-status');
-  status.textContent = '接続中...';
+  status.textContent = t('connecting');
   const res = await fetch('/hue/api/pair', { method: 'POST' });
   const data = await res.json();
   if (data.success) {
-    status.textContent = '成功!';
-    document.getElementById('cfg-apikey').textContent = '設定済み ✓';
+    status.textContent = t('success');
+    document.getElementById('cfg-apikey').textContent = t('configured');
   } else {
-    status.textContent = `失敗: ${data.error}`;
+    status.textContent = `${t('failed')}: ${data.error}`;
   }
 }
 
