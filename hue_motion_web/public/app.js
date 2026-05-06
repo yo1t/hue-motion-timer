@@ -49,7 +49,7 @@ function showScreen(id) {
 }
 function showMain() { showScreen('main-screen'); }
 function showSetup() { loadConfig(); showScreen('setup-screen'); }
-function showLogs() { fetchLogs(); showScreen('log-screen'); }
+function showLogs() { populateLogSensorSelect(); fetchLogs(); showScreen('log-screen'); }
 function showDaily() { fetchDaily(); showScreen('daily-screen'); }
 
 function switchSensor() {
@@ -207,15 +207,121 @@ function playAlert() {
 async function fetchLogs() {
   const res = await fetch(`/hue/api/logs?sensor=${encodeURIComponent(currentSensor)}`);
   const logs = await res.json();
+  cachedLogs = logs;
   const list = document.getElementById('log-list');
   list.innerHTML = logs.map(log => {
     const sec = Math.floor(log.elapsed / 1000);
     const over10 = sec >= 600;
-    return `<div class="log-entry ${over10 ? 'over10' : ''}">
+    return `<div class="log-entry ${over10 ? 'over10' : ''}" data-date="${log.date}">
       <div class="dot-mark"></div>
       <span>${esc(log.date)} ${esc(log.time)} ${esc(formatElapsed(log.elapsed))}</span>
     </div>`;
   }).join('');
+
+  // Hourly chart for selected date
+  populateDateSelect();
+  updateHourlyChart();
+}
+
+let hourlyChart = null;
+let cachedLogs = [];
+
+function populateLogSensorSelect() {
+  const sel = document.getElementById('log-sensor-select');
+  const mainSel = document.getElementById('sensor-select-main');
+  if (mainSel && mainSel.options.length > 0) {
+    sel.innerHTML = [...mainSel.options].map(o => `<option value="${esc(o.value)}" ${o.value === currentSensor ? 'selected' : ''}>${esc(o.value)}</option>`).join('');
+  }
+}
+
+function switchLogSensor() {
+  currentSensor = document.getElementById('log-sensor-select').value;
+  fetchLogs();
+}
+
+function populateDateSelect() {
+  const sel = document.getElementById('hourly-date-select');
+  const dates = [];
+  const now = new Date();
+  for (let i = 0; i < 10; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    dates.push(`${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`);
+  }
+  sel.innerHTML = dates.map((d, i) => `<option value="${d}" ${i === 0 ? 'selected' : ''}>${d}</option>`).join('');
+}
+
+function updateHourlyChart() {
+  const dateKey = document.getElementById('hourly-date-select').value;
+  renderHourlyChart(cachedLogs, dateKey);
+
+  // Scroll log list to the first entry of selected date
+  const entry = document.querySelector(`.log-entry[data-date="${dateKey}"]`);
+  if (entry) {
+    entry.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function renderHourlyChart(logs, dateKey) {
+  const ctx = document.getElementById('hourly-chart');
+  if (hourlyChart) hourlyChart.destroy();
+
+  const todayKey = dateKey;
+
+  // Bucket logs by hour (0-23)
+  const hourlyTotal = new Array(24).fill(0);
+  const hourlyCount = new Array(24).fill(0);
+
+  for (const log of logs) {
+    if (log.date !== todayKey) continue;
+    const hour = parseInt(log.time.split(':')[0]);
+    if (hour >= 0 && hour < 24) {
+      hourlyTotal[hour] += Math.floor(log.elapsed / 1000);
+      hourlyCount[hour]++;
+    }
+  }
+
+  const labels = Array.from({length: 24}, (_, i) => `${String(i).padStart(2,'0')}:00`);
+  const avgData = hourlyCount.map((c, i) => c > 0 ? secToMin(hourlyTotal[i] / c) : 0);
+  const totalData = hourlyTotal.map(s => secToMin(s));
+
+  hourlyChart = new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: t('avg') + ' (min)',
+          data: avgData,
+          backgroundColor: 'rgba(0, 212, 255, 0.6)',
+          borderColor: 'rgba(0, 212, 255, 1)',
+          borderWidth: 1,
+          yAxisID: 'y',
+        },
+        {
+          type: 'bar',
+          label: t('max') + ' total (min)',
+          data: totalData,
+          backgroundColor: 'rgba(255, 221, 0, 0.4)',
+          borderColor: 'rgba(255, 221, 0, 1)',
+          borderWidth: 1,
+          yAxisID: 'y',
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#ccc', font: { size: 10 } } },
+        title: { display: true, text: todayKey, color: '#aaa', font: { size: 11 } },
+      },
+      scales: {
+        x: { ticks: { color: '#aaa', font: { size: 9 }, maxRotation: 0 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { beginAtZero: true, ticks: { color: '#aaa' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+      },
+    },
+  });
 }
 
 // ─── Daily display ───

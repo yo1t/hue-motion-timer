@@ -53,6 +53,7 @@ Both versions share the same Hue Bridge and can run simultaneously. Each version
 | Real-time timer display | ✓ | ✓ |
 | Multi-sensor support | — | ✓ (up to 20) |
 | Sensor overview bar | — | ✓ |
+| Hourly chart (per day) | — | ✓ |
 | Per-sensor alert config | — | ✓ |
 | Motion detection status | ✓ | ✓ |
 | Auto Bridge discovery (mDNS/Cloud) | ✓ | ✓ (IP range scan) |

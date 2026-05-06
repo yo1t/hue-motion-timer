@@ -125,6 +125,13 @@
     <div id="log-screen" class="screen hidden">
       <h2>ログ</h2>
       <div id="log-list" class="log-list"></div>
+      <div class="setting-actions">
+        <select id="log-sensor-select" onchange="switchLogSensor()"></select>
+        <select id="hourly-date-select" onchange="updateHourlyChart()"></select>
+      </div>
+      <div class="chart-container">
+        <canvas id="hourly-chart"></canvas>
+      </div>
       <button class="back-btn" onclick="showMain()">戻る</button>
     </div>
 
