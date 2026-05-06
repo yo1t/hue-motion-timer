@@ -681,7 +681,13 @@ async function setLang(lang) {
     body: JSON.stringify({ lang })
   });
   const data = await res.json();
-  if (data.success) { currentLang = lang; applyLang(); updateLangButtons(); }
+  if (data.success) {
+    currentLang = lang;
+    applyLang();
+    updateLangButtons();
+    // Redraw charts with new language labels
+    renderMainChartPage();
+  }
 }
 
 function updateLangButtons() {
