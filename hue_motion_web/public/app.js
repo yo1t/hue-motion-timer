@@ -17,6 +17,14 @@ const I18N = {
     notFound: '見つかりません', noSensors: 'センサーが見つかりません',
     times: '回', avg: '平均', max: '最大', min2: '最小',
     logTitle: 'ログ', dailyTitle: '日別サマリー',
+    prevMonth: '◀ 前月', nextMonth: '次月 ▶',
+    bridgeIP: 'Bridge IP', apiKey: 'API キー', sensorLabel: 'センサー',
+    alertConfig: 'アラート設定', alertMinLabel: 'アラート (分, カンマ区切り):',
+    urgentMinLabel: '緊急アラート (分):', save: '保存',
+    autoDiscover: '自動探索', rangeScan: 'レンジ探索', manualSet: '手動設定',
+    pairing: 'ペアリング', getFromBridge: 'Bridge から取得',
+    hueHint: 'Hue Bridge のボタンを押してからクリック',
+    langLabel: 'Language',
   },
   en: {
     waiting: 'Waiting...', detected: 'Detected!', noMotion: 'No motion',
@@ -35,6 +43,14 @@ const I18N = {
     notFound: 'Not found', noSensors: 'No sensors found',
     times: 'x', avg: 'Avg', max: 'Max', min2: 'Min',
     logTitle: 'Logs', dailyTitle: 'Daily Summary',
+    prevMonth: '◀ Prev', nextMonth: 'Next ▶',
+    bridgeIP: 'Bridge IP', apiKey: 'API Key', sensorLabel: 'Sensors',
+    alertConfig: 'Alert Config', alertMinLabel: 'Alert (min, comma-separated):',
+    urgentMinLabel: 'Urgent alert (min):', save: 'Save',
+    autoDiscover: 'Auto Discover', rangeScan: 'Range Scan', manualSet: 'Manual Set',
+    pairing: 'Pair', getFromBridge: 'Get from Bridge',
+    hueHint: 'Press the Hue Bridge button first',
+    langLabel: 'Language',
   }
 };
 
@@ -679,20 +695,56 @@ setInterval(loadMainChart, 300000);
 function applyLang() {
   // Main screen
   document.querySelector('#main-screen .label').textContent = t('status');
-  document.querySelectorAll('.bottom-nav button')[0].textContent = t('settings');
-  document.querySelectorAll('.bottom-nav button')[1].textContent = t('logs');
-  document.querySelectorAll('.bottom-nav button')[2].textContent = t('daily');
-  document.querySelectorAll('.bottom-nav button')[3].textContent = t('alert');
-  document.querySelectorAll('.bottom-nav button')[4].textContent = t('urgent');
+  const navBtns = document.querySelectorAll('.bottom-nav button');
+  if (navBtns[0]) navBtns[0].textContent = t('settings');
+  if (navBtns[1]) navBtns[1].textContent = t('logs');
+  if (navBtns[2]) navBtns[2].textContent = t('daily');
+  if (navBtns[3]) navBtns[3].textContent = t('alert');
+  if (navBtns[4]) navBtns[4].textContent = t('urgent');
+
+  // Main chart nav
+  const mainNav = document.querySelectorAll('#main-screen .chart-nav button');
+  if (mainNav[0]) mainNav[0].textContent = t('prevMonth');
+  if (mainNav[1]) mainNav[1].textContent = t('nextMonth');
+
   // Log screen
   document.querySelector('#log-screen h2').textContent = t('logTitle');
   document.querySelector('#log-screen .back-btn').textContent = t('back');
+
   // Daily screen
   document.querySelector('#daily-screen h2').textContent = t('dailyTitle');
   document.querySelector('#daily-screen .back-btn').textContent = t('back');
+  const dailyNav = document.querySelectorAll('#daily-screen .chart-nav button');
+  if (dailyNav[0]) dailyNav[0].textContent = t('prevMonth');
+  if (dailyNav[1]) dailyNav[1].textContent = t('nextMonth');
+
   // Settings screen
   document.querySelector('#setup-screen h1').textContent = t('settings');
   document.querySelector('#setup-screen .back-btn').textContent = t('back');
+  const setupH2s = document.querySelectorAll('#setup-screen .step h2');
+  if (setupH2s[0]) setupH2s[0].textContent = t('bridgeIP');
+  if (setupH2s[1]) setupH2s[1].textContent = t('apiKey');
+  if (setupH2s[2]) setupH2s[2].textContent = t('sensorLabel');
+  if (setupH2s[3]) setupH2s[3].textContent = t('alertConfig');
+  if (setupH2s[4]) setupH2s[4].textContent = t('langLabel');
+
+  // Settings buttons
+  const setupBtns = document.querySelectorAll('#setup-screen .step button');
+  const btnMap = { 'discover': 'autoDiscover', 'scanRange': 'rangeScan', 'setBridgeIP': 'manualSet',
+    'pair': 'pairing', 'loadBridgeSensors': 'getFromBridge', 'saveSensorSelection': 'save', 'saveSensorAlerts': 'save' };
+  setupBtns.forEach(btn => {
+    const fn = btn.getAttribute('onclick')?.replace('()', '');
+    if (fn && btnMap[fn]) btn.textContent = t(btnMap[fn]);
+  });
+
+  // Settings hint
+  const hint = document.querySelector('#setup-screen .setting-hint');
+  if (hint) hint.textContent = t('hueHint');
+
+  // Alert config labels
+  const labels = document.querySelectorAll('#sensor-alerts-section label');
+  if (labels[0]) labels[0].textContent = t('alertMinLabel');
+  if (labels[1]) labels[1].textContent = t('urgentMinLabel');
 }
 
 let allDailyEntries = [];
