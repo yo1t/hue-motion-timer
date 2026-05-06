@@ -385,6 +385,12 @@ app.get('/hue/api/state', (req, res) => {
     alertTriggered,
     m5Online: (Date.now() - m5LastSeen) < 15000,
     lang: config.lang || 'ja',
+    sensorOverview: config.sensors.map(s => {
+      const ss = getSensorState(s.name);
+      let elapsed = 0;
+      if (ss.everDetected && ss.startTime) elapsed = Date.now() - ss.startTime.getTime();
+      return { name: s.name, active: ss.everDetected, elapsed };
+    }),
   });
 });
 

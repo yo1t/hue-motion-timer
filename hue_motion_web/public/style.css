@@ -289,3 +289,26 @@ header {
 .sensor-check { margin: 6px 0; display: flex; align-items: center; gap: 8px; }
 .sensor-check input { width: 18px; height: 18px; }
 .sensor-check label { color: #ccc; font-size: 0.95rem; }
+
+.sensor-overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.so-item {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid #333;
+  color: #888;
+}
+.so-active {
+  color: #3fb950;
+  border-color: #238636;
+  background: #23863620;
+}
+.so-idle {
+  color: #666;
+  border-color: #333;
+}

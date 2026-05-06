@@ -98,6 +98,16 @@ async function updateState() {
       if (!currentSensor) currentSensor = data.sensorName;
     }
 
+    // Sensor overview (compact status bar)
+    if (data.sensorOverview) {
+      const ov = document.getElementById('sensor-overview');
+      ov.innerHTML = data.sensorOverview.map(s => {
+        const cls = s.active ? 'so-active' : 'so-idle';
+        const time = s.active ? formatElapsed(s.elapsed) : '--:--';
+        return `<span class="so-item ${cls}">${esc(s.name)} ${time}</span>`;
+      }).join('');
+    }
+
     // Connection status
     const dot = document.getElementById('connection');
     dot.className = `dot ${data.connected ? 'connected' : 'disconnected'}`;
