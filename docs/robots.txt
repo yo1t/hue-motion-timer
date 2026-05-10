@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://yo1t.github.io/hue-motion-timer/sitemap.xml
