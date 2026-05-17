@@ -5,6 +5,7 @@ hue_motion_timer/config.h
 hue_motion_web/config.json
 hue_motion_web/state.json
 hue_motion_web/node_modules/
+hue_motion_web/logs/
 
 # SSH keys
 pem/

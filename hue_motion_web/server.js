@@ -4,6 +4,56 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
+// ─── Error logging to file ───
+const LOG_DIR = path.join(__dirname, 'logs');
+const LOG_RETENTION_DAYS = 30;
+
+if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR);
+
+function getLogFileName() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.log`;
+}
+
+function logError(category, message) {
+  const now = new Date().toISOString();
+  const line = `[${now}] [${category}] ${message}\n`;
+  const file = path.join(LOG_DIR, getLogFileName());
+  fs.appendFileSync(file, line);
+  console.error(line.trim());
+}
+
+function logInfo(category, message) {
+  const now = new Date().toISOString();
+  const line = `[${now}] [${category}] ${message}\n`;
+  const file = path.join(LOG_DIR, getLogFileName());
+  fs.appendFileSync(file, line);
+  console.log(line.trim());
+}
+
+// Rotate: delete logs older than retention period
+function rotateLogs() {
+  try {
+    const files = fs.readdirSync(LOG_DIR);
+    const cutoff = Date.now() - LOG_RETENTION_DAYS * 86400000;
+    for (const f of files) {
+      if (!f.endsWith('.log')) continue;
+      const match = f.match(/^(\d{4})-(\d{2})-(\d{2})\.log$/);
+      if (match) {
+        const fileDate = new Date(parseInt(match[1]), parseInt(match[2])-1, parseInt(match[3])).getTime();
+        if (fileDate < cutoff) {
+          fs.unlinkSync(path.join(LOG_DIR, f));
+          console.log(`[Log] Rotated: ${f}`);
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+}
+
+// Rotate on startup and daily
+rotateLogs();
+setInterval(rotateLogs, 86400000);
+
 // ─── Load configuration & validation ───
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 
@@ -186,6 +236,7 @@ async function resolveAllSensors() {
     console.log(`[Hue] Resolved ${config.sensors.filter(s => s.id).length}/${config.sensors.length} sensors`);
   } catch (e) {
     console.error('[Hue] resolveAllSensors error:', e.message);
+    logError('Hue', `resolveAllSensors: ${e.message}`);
   }
 }
 
@@ -230,6 +281,7 @@ async function pollAllSensors() {
     } catch (e) {
       const ss = getSensorState(sensor.name);
       ss.connected = false;
+      logError('Poll', `${sensor.name}: ${e.message}`);
     }
   }
 }
@@ -280,7 +332,7 @@ function saveState() {
     const tmp = STATE_FILE + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
     fs.renameSync(tmp, STATE_FILE);
-  } catch (e) { console.error('[State] Save error:', e.message); }
+  } catch (e) { logError('State', `Save: ${e.message}`); }
 }
 
 function loadState() {
@@ -326,7 +378,7 @@ function loadState() {
         }
       }
     }
-  } catch (e) { console.error('[State] Load error:', e.message); }
+  } catch (e) { logError('State', `Load: ${e.message}`); }
 }
 
 // ─── API endpoints ───
