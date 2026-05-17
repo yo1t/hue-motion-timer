@@ -180,6 +180,7 @@ function getSensorState(name) {
     state.sensors[name] = {
       presence: false, everDetected: false,
       startTime: null, lastNoMotionTime: null,
+      lastSuccessPoll: Date.now(),
       alerts: {}, logs: [], dailyStats: {},
     };
   }
@@ -264,6 +265,7 @@ async function pollAllSensors() {
 
       ss.presence = newPresence;
       ss.connected = true;
+      ss.lastSuccessPoll = Date.now();
 
       // Reset after no-motion timeout
       if (ss.everDetected && !ss.presence && ss.lastNoMotionTime) {
@@ -282,6 +284,15 @@ async function pollAllSensors() {
       const ss = getSensorState(sensor.name);
       ss.connected = false;
       logError('Poll', `${sensor.name}: ${e.message}`);
+
+      // If polling fails for over 1 hour, force-reset the timer
+      if (ss.everDetected && ss.lastSuccessPoll && (Date.now() - ss.lastSuccessPoll > 3600000)) {
+        logError('Poll', `${sensor.name}: polling failed for >1h, resetting timer`);
+        ss.everDetected = false;
+        ss.startTime = null;
+        ss.lastNoMotionTime = null;
+        ss.alerts = {};
+      }
     }
   }
 }
