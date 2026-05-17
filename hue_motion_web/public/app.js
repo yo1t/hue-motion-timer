@@ -227,6 +227,7 @@ function playAlert() {
 
 // ─── Log display ───
 async function fetchLogs() {
+  await fetchErrorDates();
   const res = await fetch(`/hue/api/logs?sensor=${encodeURIComponent(currentSensor)}`);
   const logs = await res.json();
   cachedLogs = logs;
@@ -234,9 +235,11 @@ async function fetchLogs() {
   list.innerHTML = logs.map(log => {
     const sec = Math.floor(log.elapsed / 1000);
     const over10 = sec >= 600;
+    const hasError = errorDates.includes(log.date);
+    const errorMark = hasError ? '<span class="error-mark" title="Error log exists">⚠</span>' : '';
     return `<div class="log-entry ${over10 ? 'over10' : ''}" data-date="${log.date}">
       <div class="dot-mark"></div>
-      <span>${esc(log.date)} ${esc(log.time)} ${esc(formatElapsed(log.elapsed))}</span>
+      ${errorMark}<span>${esc(log.date)} ${esc(log.time)} ${esc(formatElapsed(log.elapsed))}</span>
     </div>`;
   }).join('');
 
@@ -367,7 +370,17 @@ function renderHourlyChart(logs, dateKey) {
 }
 
 // ─── Daily display ───
+let errorDates = [];
+
+async function fetchErrorDates() {
+  try {
+    const res = await fetch('/hue/api/error-dates');
+    errorDates = await res.json();
+  } catch (e) { errorDates = []; }
+}
+
 async function fetchDaily() {
+  await fetchErrorDates();
   const res = await fetch(`/hue/api/daily?sensor=${encodeURIComponent(currentSensor)}`);
   const daily = await res.json();
   const list = document.getElementById('daily-list');
@@ -375,8 +388,10 @@ async function fetchDaily() {
   list.innerHTML = entries.slice().reverse().map(([date, d]) => {
     const avg = d.count > 0 ? Math.floor(d.total / d.count) : 0;
     const minVal = d.min === Infinity ? 0 : d.min;
+    const hasError = errorDates.includes(date);
+    const errorMark = hasError ? '<span class="error-mark" title="Error log exists">⚠</span>' : '';
     return `<div class="daily-entry">
-      <div class="date" onclick="goToLogDate('${date}')" style="cursor:pointer">${esc(date)}</div>
+      <div class="date" onclick="goToLogDate('${date}')" style="cursor:pointer">${errorMark}${esc(date)}</div>
       <div class="stats">${esc(String(d.count))}${t('times')} ${t('avg')}${esc(formatElapsed(avg*1000))} ${t('max')}${esc(formatElapsed(d.max*1000))} ${t('min2')}${esc(formatElapsed(minVal*1000))}</div>
     </div>`;
   }).join('');
@@ -442,7 +457,8 @@ function renderMainChart(entries) {
   mainChart = buildChart(ctx, entries);
 }
 
-function buildChart(ctx, entries) {
+function buildChart(ctx, entries, errorDatesSet) {
+  const errSet = errorDatesSet || new Set(errorDates);
 
   // Use entries as-is (already filled by caller)
   const labels = entries.map(([date]) => date);
@@ -511,7 +527,13 @@ function buildChart(ctx, entries) {
       },
       scales: {
         x: {
-          ticks: { color: '#aaa', maxTicksLimit: 10, maxRotation: 45 },
+          ticks: {
+            color: (context) => {
+              const label = labels[context.index];
+              return errSet.has(label) ? '#ff4444' : '#aaa';
+            },
+            maxTicksLimit: 10, maxRotation: 45
+          },
           grid: { color: 'rgba(255,255,255,0.1)' }
         },
         y: {
@@ -784,6 +806,7 @@ let chartPage = 0;  // 0 = current month, 1 = last month, etc.
 
 async function loadMainChart() {
   try {
+    await fetchErrorDates();
     const res = await fetch(`/hue/api/daily?sensor=${encodeURIComponent(currentSensor)}`);
     const daily = await res.json();
     allDailyEntries = Object.entries(daily).sort((a, b) => a[0].localeCompare(b[0]));

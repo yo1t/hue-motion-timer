@@ -469,6 +469,25 @@ app.get('/hue/api/daily', (req, res) => {
   res.json(getSensorState(name).dailyStats);
 });
 
+// Get dates that have error logs
+app.get('/hue/api/error-dates', (req, res) => {
+  try {
+    const files = fs.readdirSync(LOG_DIR).filter(f => f.endsWith('.log'));
+    const dates = [];
+    for (const f of files) {
+      const match = f.match(/^(\d{4})-(\d{2})-(\d{2})\.log$/);
+      if (match) {
+        const mm = match[2];
+        const dd = match[3];
+        dates.push(`${mm}/${dd}`);
+      }
+    }
+    res.json(dates);
+  } catch (e) {
+    res.json([]);
+  }
+});
+
 // Get config (masked)
 app.get('/hue/api/config', (req, res) => {
   res.json({

@@ -340,3 +340,9 @@ header {
   text-decoration: underline;
   color: #58a6ff;
 }
+
+.error-mark {
+  color: #ff8800;
+  font-size: 0.85rem;
+  margin-right: 4px;
+}
