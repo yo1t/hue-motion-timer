@@ -261,6 +261,26 @@ function switchLogSensor() {
   fetchLogs();
 }
 
+function goToLogDate(dateKey) {
+  showLogs();
+  // Wait for logs to render, then set date and scroll
+  setTimeout(() => {
+    const dateSel = document.getElementById('hourly-date-select');
+    if (dateSel) {
+      // Add the date to dropdown if not present
+      const exists = [...dateSel.options].some(o => o.value === dateKey);
+      if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = dateKey;
+        opt.textContent = dateKey;
+        dateSel.appendChild(opt);
+      }
+      dateSel.value = dateKey;
+      updateHourlyChart();
+    }
+  }, 300);
+}
+
 function populateDateSelect() {
   const sel = document.getElementById('hourly-date-select');
   const dates = [];
@@ -356,7 +376,7 @@ async function fetchDaily() {
     const avg = d.count > 0 ? Math.floor(d.total / d.count) : 0;
     const minVal = d.min === Infinity ? 0 : d.min;
     return `<div class="daily-entry">
-      <div class="date">${esc(date)}</div>
+      <div class="date" onclick="goToLogDate('${date}')" style="cursor:pointer">${esc(date)}</div>
       <div class="stats">${esc(String(d.count))}${t('times')} ${t('avg')}${esc(formatElapsed(avg*1000))} ${t('max')}${esc(formatElapsed(d.max*1000))} ${t('min2')}${esc(formatElapsed(minVal*1000))}</div>
     </div>`;
   }).join('');

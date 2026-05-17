@@ -335,3 +335,8 @@ header {
 }
 .chart-nav button:hover { background: #3a3a5a; }
 .chart-nav span { color: #888; font-size: 0.8rem; }
+
+.daily-entry .date:hover {
+  text-decoration: underline;
+  color: #58a6ff;
+}
