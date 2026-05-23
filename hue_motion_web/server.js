@@ -469,14 +469,44 @@ app.get('/hue/api/daily', (req, res) => {
   res.json(getSensorState(name).dailyStats);
 });
 
-// Get dates that have error logs
+// Get dates that have error logs (only if continuous errors span 1+ hour)
+// "Continuous" = gap between consecutive errors <= 5 minutes
 app.get('/hue/api/error-dates', (req, res) => {
   try {
     const files = fs.readdirSync(LOG_DIR).filter(f => f.endsWith('.log'));
     const dates = [];
     for (const f of files) {
       const match = f.match(/^(\d{4})-(\d{2})-(\d{2})\.log$/);
-      if (match) {
+      if (!match) continue;
+      const filePath = path.join(LOG_DIR, f);
+      const content = fs.readFileSync(filePath, 'utf8');
+      const lines = content.split('\n').filter(l => l.trim());
+      if (lines.length < 2) continue;
+
+      // Parse timestamps
+      const timestamps = [];
+      for (const line of lines) {
+        const tsMatch = line.match(/^\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/);
+        if (tsMatch) timestamps.push(new Date(tsMatch[1] + 'Z').getTime());
+      }
+      if (timestamps.length < 2) continue;
+      timestamps.sort((a, b) => a - b);
+
+      // Find longest continuous error span (gap <= 5 min between entries)
+      let maxSpan = 0, spanStart = timestamps[0];
+      for (let i = 1; i < timestamps.length; i++) {
+        if (timestamps[i] - timestamps[i - 1] > 300000) {
+          // Gap > 5 min: end of continuous span
+          const span = timestamps[i - 1] - spanStart;
+          if (span > maxSpan) maxSpan = span;
+          spanStart = timestamps[i];
+        }
+      }
+      // Check last span
+      const lastSpan = timestamps[timestamps.length - 1] - spanStart;
+      if (lastSpan > maxSpan) maxSpan = lastSpan;
+
+      if (maxSpan >= 3600000) {
         const mm = match[2];
         const dd = match[3];
         dates.push(`${mm}/${dd}`);
