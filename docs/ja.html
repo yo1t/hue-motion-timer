@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hue Motion Timer - Philips Hue人感センサーで滞在時間を計測</title>
-  <meta name="description" content="Philips Hue人感センサーで滞在時間をリアルタイム計測。M5StackとWebダッシュボードの2構成。見守り・介護・施設管理に。Home Assistant不要。">
-  <meta name="keywords" content="Philips Hue, 人感センサー, タイマー, M5Stack, ESP32, IoT, 滞在時間, スマートホーム, 見守り, 介護, Arduino">
-  <meta property="og:title" content="Hue Motion Timer">
-  <meta property="og:description" content="Philips Hue人感センサーで滞在時間を計測。M5Stack + Webダッシュボード。Home Assistant不要。">
+  <title>Hue Motion Timer - トイレや浴室の滞在時間を計測してアラート通知 | 無料IoTツール</title>
+  <meta name="description" content="Philips Hue人感センサーで部屋の滞在時間をリアルタイム計測。長時間滞在でアラート通知。トイレ見守り・介護・施設管理に。M5Stack＋Webダッシュボード。Home Assistant不要・無料。">
+  <meta name="keywords" content="Philips Hue, 人感センサー, タイマー, M5Stack, ESP32, IoT, 滞在時間, スマートホーム, 見守り, 介護, Arduino, トイレ 安全, 高齢者 見守り">
+  <meta property="og:title" content="Hue Motion Timer - トイレや浴室の滞在時間を計測してアラート通知">
+  <meta property="og:description" content="Philips Hue人感センサーで滞在時間を計測。長時間滞在でアラート。M5Stack＋Webダッシュボード。Home Assistant不要・無料。">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://yo1t.github.io/hue-motion-timer/ja.html">
   <meta property="og:image" content="https://yo1t.github.io/hue-motion-timer/web-screenshot.png">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Hue Motion Timer">
-  <meta name="twitter:description" content="Philips Hue人感センサーで滞在時間を計測。M5Stack + Webダッシュボード。">
+  <meta name="twitter:title" content="Hue Motion Timer - トイレや浴室の滞在時間を計測してアラート通知">
+  <meta name="twitter:description" content="Philips Hue人感センサーで滞在時間を計測。長時間滞在でアラート。無料・オープンソース。">
   <meta name="twitter:image" content="https://yo1t.github.io/hue-motion-timer/web-screenshot.png">
   <link rel="canonical" href="https://yo1t.github.io/hue-motion-timer/ja.html">
   <link rel="alternate" hreflang="en" href="https://yo1t.github.io/hue-motion-timer/">
@@ -32,6 +32,54 @@
     "codeRepository": "https://github.com/yo1t/hue-motion-timer",
     "programmingLanguage": ["C++", "JavaScript"],
     "offers": {"@type": "Offer", "price": "0", "priceCurrency": "JPY"}
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Home Assistantは必要ですか？",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "不要です。Hue Motion TimerはPhilips Hue Bridge APIに直接接続します。Home AssistantやSmartThingsなどのプラットフォームは一切不要です。"
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "必要なハードウェアは？",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Philips Hue Bridge（V1またはV2）とHue人感センサーが必要です。M5Stack版を使う場合はM5Stack Basicも必要です。Web版はNode.jsサーバーがあれば動作します。"
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "複数の部屋を同時に監視できますか？",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "はい。Web版は最大20個のセンサーを同時に監視でき、それぞれ独立したタイマー、ログ、統計、アラート設定を持ちます。"
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "アラートはどのように動作しますか？",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "複数のアラート閾値（例：15分、20分、30分、45分、60分）を設定できます。滞在時間が閾値を超えるとアラート音が鳴ります。緊急アラートも別途設定可能です。"
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "無料ですか？",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "はい、MITライセンスの完全無料・オープンソースです。サブスクリプションやクラウドサービスは不要です。"
+        }
+      }
+    ]
   }
   </script>
   <style>

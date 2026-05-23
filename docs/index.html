@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hue Motion Timer - Track Occupancy Duration with Philips Hue Sensors</title>
-  <meta name="description" content="Open-source motion sensor timer using Philips Hue. Real-time occupancy tracking on M5Stack and web dashboard. For monitoring, caregiving, facility management.">
-  <meta name="keywords" content="Philips Hue, motion sensor, timer, M5Stack, ESP32, IoT, occupancy, smart home, monitoring, caregiving, Arduino">
-  <meta property="og:title" content="Hue Motion Timer">
-  <meta property="og:description" content="Track occupancy duration with Philips Hue motion sensors. M5Stack + Web dashboard, no Home Assistant required.">
+  <title>Hue Motion Timer - Track How Long Someone Has Been in a Room | Free IoT Tool</title>
+  <meta name="description" content="Free open-source tool to track room occupancy duration using Philips Hue motion sensors. Get alerts when someone stays too long in bathroom or toilet. M5Stack + Web dashboard. No Home Assistant needed.">
+  <meta name="keywords" content="Philips Hue, motion sensor, timer, M5Stack, ESP32, IoT, occupancy, smart home, monitoring, caregiving, Arduino, bathroom safety, elderly monitoring">
+  <meta property="og:title" content="Hue Motion Timer - Track How Long Someone Has Been in a Room">
+  <meta property="og:description" content="Free tool to track room occupancy with Philips Hue sensors. Get alerts for long stays. M5Stack + Web dashboard, no Home Assistant required.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://yo1t.github.io/hue-motion-timer/">
   <meta property="og:image" content="https://yo1t.github.io/hue-motion-timer/web-screenshot.png">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Hue Motion Timer">
-  <meta name="twitter:description" content="Track occupancy duration with Philips Hue motion sensors. M5Stack + Web dashboard.">
+  <meta name="twitter:title" content="Hue Motion Timer - Track How Long Someone Has Been in a Room">
+  <meta name="twitter:description" content="Free tool to track room occupancy with Philips Hue sensors. Alerts for long stays. M5Stack + Web.">
   <meta name="twitter:image" content="https://yo1t.github.io/hue-motion-timer/web-screenshot.png">
   <link rel="canonical" href="https://yo1t.github.io/hue-motion-timer/">
   <link rel="alternate" hreflang="en" href="https://yo1t.github.io/hue-motion-timer/">
@@ -32,6 +32,54 @@
     "codeRepository": "https://github.com/yo1t/hue-motion-timer",
     "programmingLanguage": ["C++", "JavaScript"],
     "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Do I need Home Assistant to use Hue Motion Timer?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. Hue Motion Timer connects directly to the Philips Hue Bridge API. No Home Assistant, SmartThings, or any other platform is required."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What hardware do I need?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "You need a Philips Hue Bridge (V1 or V2), a Hue Motion Sensor, and optionally an M5Stack Basic for the embedded version. The web version runs on any Node.js server."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I monitor multiple rooms at once?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. The web version supports up to 20 sensors simultaneously, each with independent timers, logs, statistics, and alert configurations."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does the alert system work?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "You can configure multiple alert thresholds (e.g., 15, 20, 30, 45, 60 minutes). When occupancy exceeds a threshold, an audible alert plays. A separate urgent alert can be configured for critical durations."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is it free?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes, completely free and open-source under the MIT license. No subscriptions or cloud services required."
+        }
+      }
+    ]
   }
   </script>
   <style>
