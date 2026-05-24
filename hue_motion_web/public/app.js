@@ -237,9 +237,10 @@ async function fetchLogs() {
     const over10 = sec >= 600;
     const hasError = errorDates.includes(log.date);
     const errorMark = hasError ? '<span class="error-mark" title="Error log exists">⚠</span>' : '';
+    const m5Mark = log.m5err ? '<span class="m5-err-mark" title="M5Stack offline">*</span>' : '';
     return `<div class="log-entry ${over10 ? 'over10' : ''}" data-date="${log.date}">
       <div class="dot-mark"></div>
-      ${errorMark}<span>${esc(log.date)} ${esc(log.time)} ${esc(formatElapsed(log.elapsed))}</span>
+      ${errorMark}${m5Mark}<span>${esc(log.date)} ${esc(log.time)} ${esc(formatElapsed(log.elapsed))}</span>
     </div>`;
   }).join('');
 

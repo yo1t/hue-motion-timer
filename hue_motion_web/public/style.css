@@ -346,3 +346,10 @@ header {
   font-size: 0.85rem;
   margin-right: 4px;
 }
+
+.m5-err-mark {
+  color: #ff4444;
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-right: 4px;
+}

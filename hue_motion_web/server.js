@@ -301,10 +301,12 @@ async function pollAllSensors() {
 function saveLog(sensorName, elapsedMs) {
   const ss = getSensorState(sensorName);
   const now = new Date();
+  const m5Offline = (Date.now() - m5LastSeen) >= 15000;
   const entry = {
     date: `${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`,
     time: `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
     elapsed: elapsedMs,
+    m5err: m5Offline || undefined,
   };
   ss.logs.unshift(entry);
   if (ss.logs.length > MAX_LOGS) ss.logs.pop();
