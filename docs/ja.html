@@ -115,6 +115,11 @@
     .cta { text-align: center; margin: 40px 0; }
     .cta a { display: inline-block; padding: 12px 30px; background: #238636; color: #fff; border-radius: 8px; font-size: 1rem; font-weight: bold; }
     .cta a:hover { background: #2ea043; text-decoration: none; }
+    .faq { margin: 20px 0; }
+    .faq details { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin: 10px 0; padding: 15px 20px; }
+    .faq summary { color: #c9d1d9; font-weight: bold; cursor: pointer; font-size: 0.95rem; }
+    .faq summary:hover { color: #58a6ff; }
+    .faq details p { margin-top: 10px; font-size: 0.9rem; }
     footer { text-align: center; padding: 30px 0; color: #484f58; font-size: 0.85rem; border-top: 1px solid #30363d; margin-top: 40px; }
     @media (max-width: 600px) { .features { grid-template-columns: 1fr; } }
   </style>
@@ -218,6 +223,30 @@
     <p>M5Stack Basic (ESP32)、Philips Hue Bridge (V1/V2)、Hue 人感センサー、Arduino CLI または IDE</p>
     <h3>Web 版</h3>
     <p>Node.js 18 以上、Apache 2.4 以上 + mod_proxy、Hue Bridge へのネットワークアクセス</p>
+
+    <h2>よくある質問</h2>
+    <div class="faq">
+      <details>
+        <summary>Home Assistantは必要ですか？</summary>
+        <p>不要です。Hue Motion TimerはPhilips Hue Bridge APIに直接接続します。Home AssistantやSmartThingsなどのプラットフォームは一切不要です。</p>
+      </details>
+      <details>
+        <summary>必要なハードウェアは？</summary>
+        <p>Philips Hue Bridge（V1またはV2）とHue人感センサーが必要です。M5Stack版を使う場合はM5Stack Basicも必要です。Web版はNode.jsサーバーがあれば動作します。</p>
+      </details>
+      <details>
+        <summary>複数の部屋を同時に監視できますか？</summary>
+        <p>はい。Web版は最大20個のセンサーを同時に監視でき、それぞれ独立したタイマー、ログ、統計、アラート設定を持ちます。</p>
+      </details>
+      <details>
+        <summary>アラートはどのように動作しますか？</summary>
+        <p>複数のアラート閾値（例：15分、20分、30分、45分、60分）を設定できます。滞在時間が閾値を超えるとアラート音が鳴ります。緊急アラートも別途設定可能です。</p>
+      </details>
+      <details>
+        <summary>無料ですか？</summary>
+        <p>はい、MITライセンスの完全無料・オープンソースです。サブスクリプションやクラウドサービスは不要です。</p>
+      </details>
+    </div>
 
     <div class="cta">
       <a href="https://github.com/yo1t/hue-motion-timer">GitHub で見る →</a>

@@ -115,6 +115,11 @@
     .cta { text-align: center; margin: 40px 0; }
     .cta a { display: inline-block; padding: 12px 30px; background: #238636; color: #fff; border-radius: 8px; font-size: 1rem; font-weight: bold; }
     .cta a:hover { background: #2ea043; text-decoration: none; }
+    .faq { margin: 20px 0; }
+    .faq details { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin: 10px 0; padding: 15px 20px; }
+    .faq summary { color: #c9d1d9; font-weight: bold; cursor: pointer; font-size: 0.95rem; }
+    .faq summary:hover { color: #58a6ff; }
+    .faq details p { margin-top: 10px; font-size: 0.9rem; }
     footer { text-align: center; padding: 30px 0; color: #484f58; font-size: 0.85rem; border-top: 1px solid #30363d; margin-top: 40px; }
     @media (max-width: 600px) { .features { grid-template-columns: 1fr; } }
   </style>
@@ -218,6 +223,30 @@
     <p>M5Stack Basic (ESP32), Philips Hue Bridge (V1/V2), Hue Motion Sensor, Arduino CLI or IDE</p>
     <h3>Web Version</h3>
     <p>Node.js 18+, Apache 2.4+ with mod_proxy, network access to Hue Bridge</p>
+
+    <h2>FAQ</h2>
+    <div class="faq">
+      <details>
+        <summary>Do I need Home Assistant?</summary>
+        <p>No. Hue Motion Timer connects directly to the Philips Hue Bridge API. No Home Assistant, SmartThings, or any other platform is required.</p>
+      </details>
+      <details>
+        <summary>What hardware do I need?</summary>
+        <p>You need a Philips Hue Bridge (V1 or V2), a Hue Motion Sensor, and optionally an M5Stack Basic for the embedded version. The web version runs on any Node.js server.</p>
+      </details>
+      <details>
+        <summary>Can I monitor multiple rooms at once?</summary>
+        <p>Yes. The web version supports up to 20 sensors simultaneously, each with independent timers, logs, statistics, and alert configurations.</p>
+      </details>
+      <details>
+        <summary>How does the alert system work?</summary>
+        <p>You can configure multiple alert thresholds (e.g., 15, 20, 30, 45, 60 minutes). When occupancy exceeds a threshold, an audible alert plays. A separate urgent alert can be configured for critical durations.</p>
+      </details>
+      <details>
+        <summary>Is it free?</summary>
+        <p>Yes, completely free and open-source under the MIT license. No subscriptions or cloud services required.</p>
+      </details>
+    </div>
 
     <div class="cta">
       <a href="https://github.com/yo1t/hue-motion-timer">View on GitHub →</a>
