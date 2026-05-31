@@ -242,8 +242,19 @@ async function resolveAllSensors() {
 }
 
 // ─── Sensor polling (all sensors) ───
+let pollBackoff = 0;  // backoff multiplier on consecutive failures
+const MAX_BACKOFF = 30;  // max 30x = 60 seconds between polls on failure
+
 async function pollAllSensors() {
   if (!config.bridgeIP || !config.apiKey) return;
+
+  // Apply backoff: skip this poll cycle if in backoff period
+  if (pollBackoff > 0) {
+    pollBackoff--;
+    return;
+  }
+
+  let anySuccess = false;
   for (const sensor of config.sensors) {
     if (!sensor.id) continue;
     try {
@@ -266,6 +277,7 @@ async function pollAllSensors() {
       ss.presence = newPresence;
       ss.connected = true;
       ss.lastSuccessPoll = Date.now();
+      anySuccess = true;
 
       // Reset after no-motion timeout
       if (ss.everDetected && !ss.presence && ss.lastNoMotionTime) {
@@ -294,6 +306,14 @@ async function pollAllSensors() {
         ss.alerts = {};
       }
     }
+  }
+
+  // Backoff: if all sensors failed, increase wait; if any succeeded, reset
+  if (anySuccess) {
+    pollBackoff = 0;
+  } else {
+    pollBackoff = Math.min((pollBackoff || 1) * 2, MAX_BACKOFF);
+    logInfo('Poll', `All sensors failed, backoff ${pollBackoff} cycles (${pollBackoff * config.pollInterval / 1000}s)`);
   }
 }
 
