@@ -461,13 +461,13 @@ void setupHueSensor() {
   http.setTimeout(5000);
 
   int code = http.GET();
-  if (code != 200) { http.end(); haltWithError("センサー取得に失敗"); }
+  if (code != 200) { http.end(); haltWithError("センサー取得に失敗"); return; }
 
   String payload = http.getString();
   http.end();
 
   JsonDocument doc;
-  if (deserializeJson(doc, payload)) { haltWithError("JSON解析エラー"); }
+  if (deserializeJson(doc, payload)) { haltWithError("JSON解析エラー"); return; }
 
   String names[20];
   String ids[20];
@@ -483,14 +483,21 @@ void setupHueSensor() {
     }
   }
 
-  if (count == 0) { haltWithError("人感センサーが見つかりません"); }
+  if (count == 0) { haltWithError("人感センサーが見つかりません"); return; }
 
   // Selection UI
   int selected = 0;
   bool needRedraw = true;
+  unsigned long selectionStart = millis();
 
   while (true) {
     M5.update();
+
+    // Auto-timeout after 60 seconds
+    if (millis() - selectionStart >= 60000) {
+      if (count > 0) { selected = 0; break; }  // Auto-select first sensor
+      return;
+    }
 
     if (needRedraw) {
       M5.Display.fillScreen(TFT_BLACK);
@@ -531,8 +538,8 @@ void setupHueSensor() {
       needRedraw = false;
     }
 
-    if (M5.BtnA.wasPressed() && selected > 0) { selected--; needRedraw = true; }
-    if (M5.BtnC.wasPressed() && selected < count - 1) { selected++; needRedraw = true; }
+    if (M5.BtnA.wasPressed() && selected > 0) { selected--; needRedraw = true; selectionStart = millis(); }
+    if (M5.BtnC.wasPressed() && selected < count - 1) { selected++; needRedraw = true; selectionStart = millis(); }
     if (M5.BtnB.wasPressed()) break;
     delay(50);
   }
@@ -837,11 +844,19 @@ void haltWithError(const char* msg) {
   M5.Display.setTextColor(TFT_DARKGREY, TFT_BLACK);
   M5.Display.setCursor(10, 130);
   M5.Display.println("[A] 設定リセット & 再起動");
+  M5.Display.setCursor(10, 145);
+  M5.Display.println("60秒後に自動復帰します");
+
+  unsigned long start = millis();
   while (true) {
     M5.update();
     if (M5.BtnA.wasPressed()) {
       prefs.clear();
       ESP.restart();
+    }
+    // Auto-return after 60 seconds
+    if (millis() - start >= 60000) {
+      return;
     }
     delay(100);
   }
@@ -1295,9 +1310,15 @@ unsigned long getTodayMaxFromStats() {
 void showSettingsMenu() {
   int page = 0;
   bool needRedraw = true;
+  unsigned long lastActivity = millis();
 
   while (true) {
     M5.update();
+
+    // Auto-return after 60 seconds of inactivity
+    if (millis() - lastActivity >= 60000) {
+      return;
+    }
 
     if (needRedraw) {
       M5.Display.fillScreen(TFT_BLACK);
@@ -1346,6 +1367,7 @@ void showSettingsMenu() {
 
     if (page == 0) {
       if (M5.BtnA.wasPressed()) {
+        lastActivity = millis();
         // WiFi reconfigure: confirmation screen
         M5.Display.fillScreen(TFT_BLACK);
         setFontMed();
@@ -1369,6 +1391,7 @@ void showSettingsMenu() {
         return;
       }
       if (M5.BtnC.wasPressed()) {
+        lastActivity = millis();
         // Short press: Hue reconfigure, wait briefly for long-press detection
         unsigned long pressStart = millis();
         while (M5.BtnC.isPressed()) { M5.update(); delay(10); }
@@ -1409,6 +1432,7 @@ void showSettingsMenu() {
     } else {
       // page == 1
       if (M5.BtnA.wasPressed()) {
+        lastActivity = millis();
         unsigned long pressStart = millis();
         while (M5.BtnA.isPressed()) { M5.update(); delay(10); }
         if (millis() - pressStart > 500) {
