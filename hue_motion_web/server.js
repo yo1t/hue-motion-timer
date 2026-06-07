@@ -269,11 +269,19 @@ async function pollAllSensors() {
   }
 
   let anySuccess = false;
-  for (const sensor of config.sensors) {
-    if (!sensor.id) continue;
-    try {
-      const data = await hueRequest(`/api/${config.apiKey}/sensors/${sensor.id}`);
-      if (Array.isArray(data)) continue;
+
+  try {
+    // Single request to get all sensors at once (reduces Bridge load)
+    const allSensors = await hueRequest(`/api/${config.apiKey}/sensors`);
+    if (Array.isArray(allSensors)) throw new Error('Unexpected array response');
+
+    anySuccess = true;
+
+    for (const sensor of config.sensors) {
+      if (!sensor.id) continue;
+      const data = allSensors[sensor.id];
+      if (!data) continue;
+
       const ss = getSensorState(sensor.name);
       const newPresence = data.state?.presence || false;
 
@@ -291,7 +299,6 @@ async function pollAllSensors() {
       ss.presence = newPresence;
       ss.connected = true;
       ss.lastSuccessPoll = Date.now();
-      anySuccess = true;
 
       // Reset after no-motion timeout
       if (ss.everDetected && !ss.presence && ss.lastNoMotionTime) {
@@ -306,11 +313,13 @@ async function pollAllSensors() {
           ss.alerts = {};
         }
       }
-    } catch (e) {
+    }
+  } catch (e) {
+    for (const sensor of config.sensors) {
       const ss = getSensorState(sensor.name);
       ss.connected = false;
-      logError('Poll', `${sensor.name}: ${e.message}`);
     }
+    logError('Poll', `All sensors: ${e.message}`);
   }
 
   // Backoff: if all sensors failed, increase wait; if any succeeded, reset
