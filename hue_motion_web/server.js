@@ -251,6 +251,20 @@ async function pollAllSensors() {
   // Apply backoff: skip this poll cycle if in backoff period
   if (pollBackoff > 0) {
     pollBackoff--;
+    // Even during backoff, check if any timer should be force-reset (>1h no connection)
+    for (const sensor of config.sensors) {
+      const ss = getSensorState(sensor.name);
+      if (ss.everDetected && ss.lastSuccessPoll && (Date.now() - ss.lastSuccessPoll > 3600000)) {
+        logError('Poll', `${sensor.name}: polling failed for >1h (during backoff), resetting timer`);
+        const totalMs = Date.now() - ss.startTime.getTime();
+        const actualMs = Math.max(0, totalMs - config.resetTimeout);
+        saveLog(sensor.name, actualMs);
+        ss.everDetected = false;
+        ss.startTime = null;
+        ss.lastNoMotionTime = null;
+        ss.alerts = {};
+      }
+    }
     return;
   }
 
@@ -296,15 +310,6 @@ async function pollAllSensors() {
       const ss = getSensorState(sensor.name);
       ss.connected = false;
       logError('Poll', `${sensor.name}: ${e.message}`);
-
-      // If polling fails for over 1 hour, force-reset the timer
-      if (ss.everDetected && ss.lastSuccessPoll && (Date.now() - ss.lastSuccessPoll > 3600000)) {
-        logError('Poll', `${sensor.name}: polling failed for >1h, resetting timer`);
-        ss.everDetected = false;
-        ss.startTime = null;
-        ss.lastNoMotionTime = null;
-        ss.alerts = {};
-      }
     }
   }
 
@@ -314,6 +319,21 @@ async function pollAllSensors() {
   } else {
     pollBackoff = Math.min((pollBackoff || 1) * 2, MAX_BACKOFF);
     logInfo('Poll', `All sensors failed, backoff ${pollBackoff} cycles (${pollBackoff * config.pollInterval / 1000}s)`);
+
+    // Force-reset timers if polling has been failing for over 1 hour
+    for (const sensor of config.sensors) {
+      const ss = getSensorState(sensor.name);
+      if (ss.everDetected && ss.lastSuccessPoll && (Date.now() - ss.lastSuccessPoll > 3600000)) {
+        logError('Poll', `${sensor.name}: polling failed for >1h, resetting timer`);
+        const totalMs = Date.now() - ss.startTime.getTime();
+        const actualMs = Math.max(0, totalMs - config.resetTimeout);
+        saveLog(sensor.name, actualMs);
+        ss.everDetected = false;
+        ss.startTime = null;
+        ss.lastNoMotionTime = null;
+        ss.alerts = {};
+      }
+    }
   }
 }
 
@@ -405,8 +425,9 @@ function loadState() {
             ss.everDetected = true;
             ss.startTime = new Date(saved.timer.startTime);
             ss.presence = saved.timer.presence;
+            ss.lastSuccessPoll = Date.now() - elapsed;  // Estimate last success time
             if (saved.timer.lastNoMotionTime) ss.lastNoMotionTime = new Date(saved.timer.lastNoMotionTime);
-            console.log(`[Recovery] ${name}: timer restored`);
+            console.log(`[Recovery] ${name}: timer restored (will verify on next poll)`);
           }
         }
       }
