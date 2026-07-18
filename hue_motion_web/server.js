@@ -193,6 +193,19 @@ function isValidPrivateIP(ip) {
   return /^(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})$/.test(ip);
 }
 
+// Persistent keep-alive agent: reuse a single TLS connection across polls.
+// Hue Bridge has a small connection pool and limited crypto capacity;
+// creating a new TLS handshake on every poll looks like abuse and can get
+// the client IP blocked. Reusing one connection is the friendliest approach.
+const hueAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 1,          // one connection at a time to the Bridge
+  maxFreeSockets: 1,
+  keepAliveMsecs: 10000,  // keep idle socket alive between polls
+  rejectUnauthorized: false,
+  timeout: 5000,
+});
+
 function hueRequest(apiPath) {
   return new Promise((resolve, reject) => {
     if (!isValidPrivateIP(config.bridgeIP)) return reject(new Error('Invalid bridge IP'));
@@ -200,20 +213,18 @@ function hueRequest(apiPath) {
     const done = (fn, arg) => { if (!settled) { settled = true; fn(arg); } };
 
     const req = https.get(`https://${config.bridgeIP}${apiPath}`, {
-      rejectUnauthorized: false,
+      agent: hueAgent,        // reuse persistent keep-alive connection
       timeout: 5000,
-      agent: false,
-      headers: { 'Connection': 'close' },  // Force clean teardown (Bridge has limited connection pool)
     }, (res) => {
       let data = '', size = 0;
       res.on('data', c => { size += c.length; if (size > 1048576) { req.destroy(); return done(reject, new Error('Too large')); } data += c; });
       res.on('end', () => {
-        req.destroy();  // Ensure socket is closed
+        // Do NOT destroy the socket: let the agent keep it alive for reuse
         try { done(resolve, JSON.parse(data)); } catch(e) { done(reject, e); }
       });
-      res.on('error', (e) => { req.destroy(); done(reject, e); });
+      res.on('error', (e) => { done(reject, e); });
     });
-    req.on('error', (e) => { req.destroy(); done(reject, e); });
+    req.on('error', (e) => { done(reject, e); });
     req.on('timeout', () => { req.destroy(); done(reject, new Error('timeout')); });
   });
 }
