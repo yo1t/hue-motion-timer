@@ -196,26 +196,46 @@ function isValidPrivateIP(ip) {
 function hueRequest(apiPath) {
   return new Promise((resolve, reject) => {
     if (!isValidPrivateIP(config.bridgeIP)) return reject(new Error('Invalid bridge IP'));
-    const req = https.get(`https://${config.bridgeIP}${apiPath}`, { rejectUnauthorized: false, timeout: 5000, agent: false }, (res) => {
+    let settled = false;
+    const done = (fn, arg) => { if (!settled) { settled = true; fn(arg); } };
+
+    const req = https.get(`https://${config.bridgeIP}${apiPath}`, {
+      rejectUnauthorized: false,
+      timeout: 5000,
+      agent: false,
+      headers: { 'Connection': 'close' },  // Force clean teardown (Bridge has limited connection pool)
+    }, (res) => {
       let data = '', size = 0;
-      res.on('data', c => { size += c.length; if (size > 1048576) { req.destroy(); return reject(new Error('Too large')); } data += c; });
-      res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+      res.on('data', c => { size += c.length; if (size > 1048576) { req.destroy(); return done(reject, new Error('Too large')); } data += c; });
+      res.on('end', () => {
+        req.destroy();  // Ensure socket is closed
+        try { done(resolve, JSON.parse(data)); } catch(e) { done(reject, e); }
+      });
+      res.on('error', (e) => { req.destroy(); done(reject, e); });
     });
-    req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    req.on('error', (e) => { req.destroy(); done(reject, e); });
+    req.on('timeout', () => { req.destroy(); done(reject, new Error('timeout')); });
   });
 }
 
 function huePost(apiPath, body) {
   return new Promise((resolve, reject) => {
     if (!isValidPrivateIP(config.bridgeIP)) return reject(new Error('Invalid bridge IP'));
+    let settled = false;
+    const done = (fn, arg) => { if (!settled) { settled = true; fn(arg); } };
     const d = JSON.stringify(body);
-    const req = https.request({ hostname: config.bridgeIP, port: 443, path: apiPath, method: 'POST', rejectUnauthorized: false, agent: false, headers: { 'Content-Type': 'application/json', 'Content-Length': d.length } }, (res) => {
+    const req = https.request({
+      hostname: config.bridgeIP, port: 443, path: apiPath, method: 'POST',
+      rejectUnauthorized: false, agent: false, timeout: 5000,
+      headers: { 'Content-Type': 'application/json', 'Content-Length': d.length, 'Connection': 'close' },
+    }, (res) => {
       let data = '';
       res.on('data', c => data += c);
-      res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+      res.on('end', () => { req.destroy(); try { done(resolve, JSON.parse(data)); } catch(e) { done(reject, e); } });
+      res.on('error', (e) => { req.destroy(); done(reject, e); });
     });
-    req.on('error', reject);
+    req.on('error', (e) => { req.destroy(); done(reject, e); });
+    req.on('timeout', () => { req.destroy(); done(reject, new Error('timeout')); });
     req.write(d); req.end();
   });
 }
@@ -242,8 +262,9 @@ async function resolveAllSensors() {
 }
 
 // ─── Sensor polling (all sensors) ───
-let pollBackoff = 0;  // backoff multiplier on consecutive failures
-const MAX_BACKOFF = 30;  // max 30x = 60 seconds between polls on failure
+let pollBackoff = 0;          // remaining cycles to skip
+let consecutiveFailures = 0;  // consecutive failure count (drives backoff growth)
+const MAX_BACKOFF = 30;       // max 30 cycles = 60 seconds between polls on failure
 
 async function pollAllSensors() {
   if (!config.bridgeIP || !config.apiKey) return;
@@ -325,9 +346,12 @@ async function pollAllSensors() {
   // Backoff: if all sensors failed, increase wait; if any succeeded, reset
   if (anySuccess) {
     pollBackoff = 0;
+    consecutiveFailures = 0;
   } else {
-    pollBackoff = Math.min((pollBackoff || 1) * 2, MAX_BACKOFF);
-    logInfo('Poll', `All sensors failed, backoff ${pollBackoff} cycles (${pollBackoff * config.pollInterval / 1000}s)`);
+    consecutiveFailures++;
+    // Exponential backoff: 1, 2, 4, 8, 16, 30 (capped) cycles
+    pollBackoff = Math.min(Math.pow(2, consecutiveFailures - 1), MAX_BACKOFF);
+    logInfo('Poll', `All sensors failed (x${consecutiveFailures}), backoff ${pollBackoff} cycles (${pollBackoff * config.pollInterval / 1000}s)`);
 
     // Force-reset timers if polling has been failing for over 1 hour
     for (const sensor of config.sensors) {
